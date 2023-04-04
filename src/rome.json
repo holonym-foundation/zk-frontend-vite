@@ -1,0 +1,15 @@
+{
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "enabled": true,
+        "rules": {
+          "useKeyWithClickEvents": "off",
+          "useValidAnchor": "off"
+        }
+      }
+    }
+  }
+}
