@@ -6,16 +6,14 @@
  * a proof to load.
  */
 import {
-	waitForArtifacts,
 	proofOfResidency,
 	antiSybil,
-	uniquenessPhone,
 	proofOfMedicalSpecialty,
 	proveGovIdFirstNameLastName,
 	proveKnowledgeOfLeafPreimage,
 } from "../utils/proofs";
 
-let generatingProof = {
+const generatingProof = {
 	uniqueness: false,
 	"us-residency": false,
 	"medical-specialty": false,

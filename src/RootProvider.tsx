@@ -51,7 +51,7 @@ export function RootProvider({
 							>
 								<CredsProvider>
 									<ProofMetadataProvider>
-										<ProofsProvider>{children}</ProofsProvider>
+										{children}
 									</ProofMetadataProvider>
 								</CredsProvider>
 							</SignatureGate>

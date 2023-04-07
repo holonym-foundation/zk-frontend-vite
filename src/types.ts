@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 import {
 	idServerGetCredentialsRespnseSchema,
 	issuerAddressSchema,
-} from "./schema";
+} from "./id-server";
 import { z } from "zod";
 
 // @ts-ignore
@@ -61,3 +61,5 @@ export type Transaction = ethers.Transaction & {
 	blockNumber: number;
 	chainId: number;
 };
+
+export type DatishStirng = `${number}-${number}-${number}`;
