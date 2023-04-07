@@ -1,4 +1,11 @@
-import { IssuerAddress, Proof, ProofMetadata, ProofType, RawCredentials, SerializedCreds } from "./../types";
+import {
+	IssuerAddress,
+	Proof,
+	ProofMetadata,
+	ProofType,
+	RawCredentials,
+	SerializedCreds,
+} from "./../types";
 import { Buffer } from "buffer";
 import { ethers } from "ethers";
 import { Transaction } from "../types";
@@ -64,7 +71,10 @@ export function encryptWithAES(data: unknown, key: string) {
  * @param {string} key must be 32-byte hexstring
  * @returns {Promise<object | array | string>} decrypted object, array, or string, depending on what was originally encrypted
  */
-export function decryptWithAES(data: string, key: string): Promise<object | [unknown] | string> {
+export function decryptWithAES(
+	data: string,
+	key: string,
+): Promise<object | [unknown] | string> {
 	const formattedData = data.startsWith("0x") ? data.slice(2) : data;
 	const encryptedBytes = aesjs.utils.hex.toBytes(formattedData);
 	const formattedKey = aesjs.utils.hex.toBytes(
@@ -147,12 +157,16 @@ export async function getLocalEncryptedUserCredentials() {
 	console.log("Did not find creds in localStorage");
 }
 
-const isStringNotUndefinedOrNull = (str: string) => str &&
-	str !== "undefined" &&
-	str !== "null"
+const isStringNotUndefinedOrNull = (str: string) =>
+	str && str !== "undefined" && str !== "null";
 
-interface EncryptedCreds { encryptedCredentialsAES: string };
-type StoredCreds = Record<IssuerAddress, { completedAt: 123, rawCreds: RawCredentials }>
+interface EncryptedCreds {
+	encryptedCredentialsAES: string;
+}
+type StoredCreds = Record<
+	IssuerAddress,
+	{ completedAt: 123; rawCreds: RawCredentials }
+>;
 /**
  * Get credentials from localStorage and remote backup. Also re-stores credentials
  * before returning them.
@@ -166,19 +180,21 @@ export async function getCredentials(
 	holoAuthSigDigest: string,
 	restore = true,
 ) {
-
 	// AES-encrypted creds are present
 	const decryptCredsWithAES = (encryptedCreds?: EncryptedCreds) =>
-		encryptedCreds?.encryptedCredentialsAES && isStringNotUndefinedOrNull(encryptedCreds?.encryptedCredentialsAES) ? decryptWithAES(
-			encryptedCreds.encryptedCredentialsAES,
-			holoKeyGenSigDigest,
-		) : undefined
+		encryptedCreds?.encryptedCredentialsAES &&
+		isStringNotUndefinedOrNull(encryptedCreds?.encryptedCredentialsAES)
+			? decryptWithAES(
+					encryptedCreds.encryptedCredentialsAES,
+					holoKeyGenSigDigest,
+			  )
+			: undefined;
 
 	// 1. Get and decrypt if availble local and remove creds
 	const allCreds = await Promise.all([
 		getLocalEncryptedUserCredentials().then(decryptCredsWithAES),
-		getUserCredentialsSchema(holoAuthSigDigest).then(decryptCredsWithAES)
-	]).then(([local, remote]) => ([...remote || [], ...local || []]))
+		getUserCredentialsSchema(holoAuthSigDigest).then(decryptCredsWithAES),
+	]).then(([local, remote]) => [...(remote || []), ...(local || [])]);
 	// 4. Merge local and remote creds
 	// If user provides signature for incorrect decryption key (which will happen if the user signs from a different account than the one used when encrypting),
 	// the decryption procedure will still return some result, so we check that the result contains expected properties before merging.
@@ -247,7 +263,7 @@ export async function getCredentials(
  */
 export async function storeCredentials(
 	creds: {
-		[x: string]: {
+		[issuer: IssuerAddress]: {
 			creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
 		};
 	},

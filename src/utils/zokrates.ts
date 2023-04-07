@@ -1,21 +1,12 @@
-import { BigNumber, ethers } from "ethers";
 import {
 	CompilationArtifacts,
 	initialize,
 	ZoKratesProvider,
 } from "zokrates-js";
-import { IncrementalMerkleTree } from "@zk-kit/incremental-merkle-tree";
 import {
 	preprocEndpoint,
-	defaultChainToProveOn,
-	defaultActionId,
 } from "../constants";
 import zokABIs from "../constants/abi/ZokABIs.json";
-import assert from "assert";
-import Relayer from "./relayer";
-// @ts-ignore
-import { groth16 } from "snarkjs";
-import { MerkleProof } from "../types";
 
 const Preproc = {
 	async getProvingKey(circuitName: CircuitName) {
@@ -36,13 +27,13 @@ const Preproc = {
 };
 
 // TODO: @amosel create a union type for circuitName
-type CircuitName = keyof typeof zokABIs;
+export type CircuitName = keyof typeof zokABIs;
 type Abi = typeof zokABIs[CircuitName];
 type Program = Awaited<ReturnType<typeof Preproc["getProgram"]>>;
 type VerifyingKey = Awaited<ReturnType<typeof Preproc["getVerifyingKey"]>>;
 
 let zokProvider: ZoKratesProvider | null = null;
-let artifacts: Partial<
+const artifacts: Partial<
 	Record<
 		CircuitName,
 		{
@@ -51,18 +42,21 @@ let artifacts: Partial<
 		}
 	>
 > = {};
-let provingKeys: Partial<Record<CircuitName, number[]>> = {};
-let verifyingKeys: Partial<Record<CircuitName, VerifyingKey>> = {};
+const provingKeys: Partial<Record<CircuitName, Uint8Array>> = {};
+const verifyingKeys: Partial<Record<CircuitName, VerifyingKey>> = {};
 
 export const computeWitness = (type: CircuitName, args: unknown[]) => {
 	if (!zokProvider) {
 		throw new Error("zokProvider not initialized");
 	}
+	if (!(type in artifacts)) {
+		throw new Error(`${type} hash has not been loaded`);
+	}
 	const input = artifacts[type];
 	if (input === undefined) {
 		throw new Error(`Artifacts for ${type} not loaded`);
 	}
-	return zokProvider?.computeWitness(
+	return zokProvider.computeWitness(
 		input as unknown as CompilationArtifacts,
 		args,
 	);
@@ -79,7 +73,7 @@ export const generateProof = (type: CircuitName, witness: string) => {
 	if (input.program === undefined) {
 		throw new Error(`Program for ${type} not loaded`);
 	}
-	let provingKey = provingKeys[type];
+	const provingKey = provingKeys[type];
 	if (provingKey === undefined) {
 		throw new Error(`Proving key for ${type} not loaded`);
 	}
@@ -90,25 +84,45 @@ export const generateProof = (type: CircuitName, witness: string) => {
 	);
 };
 
-export async function loadArtifacts(circuitName: CircuitName) {
-	if (circuitName in artifacts) {
-		// console.log(`Note: Trying to load ${circuitName} artifacts, which have already been loaded. Not reloading`);
-		return;
-	}
-	artifacts[circuitName] = {
-		program: await Preproc.getProgram(circuitName),
-		abi: zokABIs[circuitName],
-	};
-}
 
-export async function loadProvingKey(circuitName: CircuitName) {
-	if (circuitName in provingKeys) {
-		// console.log(`Note: Trying to load ${circuitName} provingKey, which has already been loaded. Not reloading`);
-		return;
+export async function load(
+	type: "artifacts" | "provingKey" | "verifyingKey",
+	circuitName: CircuitName,
+) {
+	switch (type) {
+		case "artifacts": {
+			if (circuitName in artifacts) {
+				throw new Error(
+					`Note: Trying to load ${circuitName} artifacts, which have already been loaded. Not reloading`,
+				);
+			}
+			artifacts[circuitName] = {
+				program: await Preproc.getProgram(circuitName),
+				abi: zokABIs[circuitName],
+			};
+			break;
+		}
+		case "provingKey": {
+			if (circuitName in provingKeys) {
+				throw new Error(
+					`Note: Trying to load ${circuitName} provingKey, which has already been loaded. Not reloading`,
+				);
+			}
+			provingKeys[circuitName] = new Uint8Array(
+				await Preproc.getProvingKey(circuitName),
+			);
+			break;
+		}
+		case "verifyingKey": {
+			if (circuitName in verifyingKeys) {
+				throw new Error(
+					`Note: Trying to load ${circuitName} verifyingKey, which has already been loaded. Not reloading`,
+				);
+			}
+			verifyingKeys[circuitName] = await Preproc.getVerifyingKey(circuitName);
+			break;
+		}
 	}
-	provingKeys[circuitName] = [
-		...new Uint8Array(await Preproc.getProvingKey(circuitName)),
-	];
 }
 
 const sleep = (ms: number = 100) => new Promise((r) => setTimeout(r, ms));
@@ -116,12 +130,17 @@ const sleep = (ms: number = 100) => new Promise((r) => setTimeout(r, ms));
 /**
  * @param timeout Time in ms to wait for zokProvider to be initialized
  */
-async function waitForZokProvider(timeout = 5000) {
+async function waitForZokProvider(timeout = 1000, retries = 3) {
+	if (retries === 0) {
+		throw new Error("zokProvider failed initialization");
+	}
 	const start = Date.now();
 	while (!zokProvider && Date.now() - start < timeout) {
 		await sleep();
 	}
+	waitForZokProvider(timeout = 1000, retries--);
 }
+
 export async function waitForArtifacts(
 	circuitName: CircuitName,
 	timeout = 5000,
@@ -141,8 +160,7 @@ export async function poseidonTwoInputs(args: [string, string]) {
 		throw new Error("input must be an array of length 2");
 	}
 	if (!zokProvider) {
-		// throw new Error("zokProvider has not been initialized");
-		await waitForZokProvider(7500);
+		await waitForZokProvider();
 	}
 	if (!("poseidonTwoInputs" in artifacts)) {
 		throw new Error("Poseidon hash for two inputs has not been loaded");
@@ -166,43 +184,14 @@ export function poseidonHashQuinary(input: string[]) {
 		throw new Error("Poseidon hash has not been loaded");
 	}
 
-	let { output } = computeWitness("poseidonQuinary", input);
+	const { output } = computeWitness("poseidonQuinary", input);
 	return output.replaceAll('"', "");
 }
 
-async function loadArtifacts(circuitName: CircuitName) {
-	if (circuitName in artifacts) {
-		// console.log(`Note: Trying to load ${circuitName} artifacts, which have already been loaded. Not reloading`);
-		return;
-	}
-	artifacts[circuitName] = {
-		program: await Preproc.getProgram(circuitName),
-		abi: zokABIs[circuitName],
-	};
-}
-
-async function loadProvingKey(circuitName: CircuitName) {
-	if (circuitName in provingKeys) {
-		// console.log(`Note: Trying to load ${circuitName} provingKey, which has already been loaded. Not reloading`);
-		return;
-	}
-	provingKeys[circuitName] = [
-		...new Uint8Array(await Preproc.getProvingKey(circuitName)),
-	];
-}
-
-async function loadVerifyingKey(circuitName: CircuitName) {
-	if (circuitName in verifyingKeys) {
-		// console.log(`Note: Trying to load ${circuitName} verifyingKey, which has already been loaded. Not reloading`);
-		return;
-	}
-	verifyingKeys[circuitName] = await Preproc.getVerifyingKey(circuitName);
-}
-
-loadArtifacts("poseidonQuinary").then(() =>
+load("artifacts", "poseidonQuinary").then(() =>
 	console.log("Poseidon hash for five inputs loaded"),
 );
-loadArtifacts("poseidonTwoInputs").then(() =>
+load("artifacts", "poseidonTwoInputs").then(() =>
 	console.log("Poseidon hash for two inputs loaded"),
 );
 initialize().then(async (zokratesProvider) => {

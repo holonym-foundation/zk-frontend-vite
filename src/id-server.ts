@@ -3,15 +3,27 @@ import type { AxiosResponse } from "axios";
 import { z } from "zod";
 import { idServerUrl } from "./constants";
 
+export const issuerAddressSchema = z.string().startsWith("0x").length(132);
+
+
 export interface IdServerError {
   error: string;
 }
+
+export const CredsSchema = z.object({
+  customFields: z.array(z.string()),
+  iat: z.string(),
+  issuerAddress: issuerAddressSchema,
+  scope: z.string(),
+  secret: z.string(),
+  serializedAsPreimage: z.array(z.string()),
+});
 
 const derivedCredsValueSchema = z.object({
   derivationFunction: z.string(),
   inputFields: z.array(z.string()),
   value: z.string()
-})
+});
 
 const pointSchema = z.object({
   x: z.string(),
@@ -19,21 +31,14 @@ const pointSchema = z.object({
 })
 
 export const idServerGetCredentialsRespnseSchema = z.object({
-  creds: z.object({
-    customFields: z.array(z.string()),
-    iat: z.string(),
-    issuerAddress: z.string(),
-    scope: z.string(),
-    secret: z.string(),
-    serializedAsPreimage: z.array(z.string())
-  }),
+  creds: CredsSchema,
   leaf: z.string(),
   metadata: z.object({
     derivedCreds: z.object({
       addressHash: derivedCredsValueSchema,
       nameDobCitySubdivisionZipStreetExpireHash: derivedCredsValueSchema,
       nameHash: derivedCredsValueSchema,
-      streetHash: derivedCredsValueSchema
+      streetHash: derivedCredsValueSchema,
     }),
     fieldsInLeaf: z.array(z.string()),
     rawCreds: z.object({
@@ -49,15 +54,15 @@ export const idServerGetCredentialsRespnseSchema = z.object({
       streetNumber: z.number(),
       streetUnit: z.string(),
       subdivision: z.string(),
-      zipCode: z.number()
-    })
+      zipCode: z.number(),
+    }),
   }),
   pubkey: pointSchema,
   signature: z.object({
     R8: pointSchema,
-    S: z.string()
-  })
-})
+    S: z.string(),
+  }),
+});
 
 export type IdServerGetCredentialsRespnse = z.infer<typeof idServerGetCredentialsRespnseSchema>;
 
@@ -74,6 +79,7 @@ const maybeThrowServerErrorOrReturnData = <T>(response: AxiosResponse<T>) => {
   if (
     'error' in (response.data as unknown as { error?: unknown })
   ) {
+    // rome-ignore lint/style/noNonNullAssertion: <explanation>
     throw new Error("Error fetching from id server", (response.data as unknown as { error?: unknown }).error!)
   }
   return response.data;

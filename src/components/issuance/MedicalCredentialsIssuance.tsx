@@ -1,35 +1,20 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
+import { z } from "zod";
+import { toFormikValidationSchema } from 'zod-formik-adapter';
 import FinalStep from "./FinalStep";
 import StepSuccess from "./StepSuccess";
 import { medDAOIssuerOrigin, serverAddress } from "../../constants";
 import IssuanceContainer from "./IssuanceContainer";
-import { useProofs } from "../../context/Proofs";
+import { proofsWorker } from "../../context/Proofs";
 import { useCreds } from "../../context/Creds";
-
-const initialFormValues = {
-	firstName: "",
-	lastName: "",
-	npiNumber: "",
-};
-const validationSchema = Yup.object({
-	firstName: Yup.string().required("Required"),
-	lastName: Yup.string().required("Required"),
-	npiNumber: Yup.string()
-		.required("Required")
-		.matches(/^\d{10}$/, "NPI number must be 10 digits"),
-});
+import { useQuery } from "@tanstack/react-query";
+import { proveGovIdFirstNameLastName } from "../../utils/proofs";
 
 const VerificationRequestForm = () => {
 	const navigate = useNavigate();
-	const [govIdCreds, setGovIdCreds] = useState();
 	const [error, setError] = useState<string>();
-	// @ts-expect-error TS(2339): Property 'govIdFirstNameLastNameProof' does not ex... Remove this comment to see the full error message
-	const { govIdFirstNameLastNameProof } = useProofs();
-	// @ts-expect-error TS(2339): Property 'sortedCreds' does not exist on type 'nul... Remove this comment to see the full error message
-	const { sortedCreds, loadingCreds } = useCreds();
 
 	useEffect(() => {
 		if (loadingCreds) return;
@@ -128,8 +113,16 @@ const VerificationRequestForm = () => {
 				}}
 			>
 				<Formik
-					initialValues={initialFormValues}
-					validationSchema={validationSchema}
+					initialValues={{
+						firstName: "",
+						lastName: "",
+						npiNumber: ""
+					}}
+					validationSchema={toFormikValidationSchema(z.object({
+						firstName: z.string().default(""),
+						lastName: z.string().default(""),
+						npiNumber: z.string().min(10, "NPI number must be 10 digits").default(""),
+					}))}
 					onSubmit={onSubmit}
 				>
 					{({ isSubmitting }) => (
@@ -182,8 +175,8 @@ const VerificationRequestForm = () => {
 								{isSubmitting
 									? "Submitting..."
 									: !govIdFirstNameLastNameProof
-									? "Loading proof..."
-									: "Submit"}
+										? "Loading proof..."
+										: "Submit"}
 							</button>
 						</Form>
 					)}
