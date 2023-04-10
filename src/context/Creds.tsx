@@ -1,11 +1,9 @@
 /**
  * Context provider for creds.
  */
-import React, {
+import {
   createContext,
   useContext,
-  useState,
-  useEffect,
   type PropsWithChildren,
   useMemo
 } from 'react';
@@ -14,23 +12,25 @@ import { getCredentials, storeCredentials } from '../utils/secrets';
 import { useHoloAuthSig } from './HoloAuthSig';
 import { useHoloKeyGenSig } from './HoloKeyGenSig';
 import { serverAddress } from '../constants';
+import { useQuery } from '@tanstack/react-query';
 import {
-  type antiSybil,
-  type proofOfMedicalSpecialty,
-  type sybilPhone
-} from '../utils/proofs';
-
-// type SortedCreds = { [k in typeof serverAddress[keyof typeof serverAddress]]: Creds[]; };
-type SortedCreds = Awaited<ReturnType<typeof getCredentials>>;
+  type ProofType,
+  type GovIdCreds,
+  type MedicalCreds,
+  type PhoneNumCreds,
+  type Proof,
+  type SortedCreds
+} from '../types';
 
 const CredsContext = createContext<{
-  sortedCreds: $TSFixMe;
-  govIdCreds?: Parameters<typeof antiSybil>[1];
-  phoneNumCreds?: Parameters<typeof sybilPhone>[1];
-  medicalCreds?: Parameters<typeof proofOfMedicalSpecialty>[1];
+  sortedCreds?: SortedCreds;
+  govIdCreds?: GovIdCreds;
+  phoneNumCreds?: PhoneNumCreds;
+  medicalCreds?: MedicalCreds;
   loadingCreds: boolean;
-  reloadCreds: () => Promise<$TSFixMe>;
-  storeCreds: (sortedCreds: $TSFixMe, kolpProof: $TSFixMe) => Promise<$TSFixMe>;
+  getHasNecessaryCreds: (proofType: ProofType) => boolean;
+  reloadCreds: () => Promise<void>;
+  storeCreds: (sortedCreds: SortedCreds, kolpProof: Proof) => Promise<$TSFixMe>;
 } | null>(null);
 
 function CredsProvider({ children }: PropsWithChildren) {
@@ -44,76 +44,58 @@ function CredsProvider({ children }: PropsWithChildren) {
     'sorted-creds',
     {}
   );
-  const [loadingCreds, setLoadingCreds] = useState(true);
   const { holoAuthSigDigest } = useHoloAuthSig();
   const { holoKeyGenSigDigest } = useHoloKeyGenSig();
   const govIdCreds = useMemo(
     () =>
       (sortedCreds != null &&
         serverAddress['idgov-v2'] in sortedCreds &&
-        (
-          sortedCreds as Record<
-            (typeof serverAddress)['idgov-v2'],
-            Parameters<typeof antiSybil>[1]
-          >
-        )[serverAddress['idgov-v2']]) ||
+        sortedCreds[serverAddress['idgov-v2']]) ||
       undefined,
-    []
+    [sortedCreds]
   );
   const phoneNumCreds = useMemo(
     () =>
       (sortedCreds != null &&
         serverAddress['phone-v2'] in sortedCreds &&
-        (
-          sortedCreds as Record<
-            (typeof serverAddress)['phone-v2'],
-            Parameters<typeof sybilPhone>[1]
-          >
-        )[serverAddress['phone-v2']]) ||
+        sortedCreds[serverAddress['phone-v2']]) ||
       undefined,
-    []
+    [sortedCreds]
   );
   const medicalCreds = useMemo(
     () =>
       (sortedCreds != null &&
         serverAddress.med in sortedCreds &&
-        (
-          sortedCreds as Record<
-            (typeof serverAddress)['med'],
-            Parameters<typeof proofOfMedicalSpecialty>[1]
-          >
-        )[serverAddress.med]) ||
+        sortedCreds[serverAddress.med]) ||
       undefined,
-    []
+    [sortedCreds]
   );
 
-  async function loadCreds() {
-    if (!holoKeyGenSigDigest || !holoAuthSigDigest) return;
-    setLoadingCreds(true);
-    try {
-      setSortedCreds(
-        await getCredentials(holoKeyGenSigDigest, holoAuthSigDigest, false)
+  const loadCredsQuery = useQuery(['load-creds'], {
+    queryFn: async () => {
+      if (!holoKeyGenSigDigest || !holoAuthSigDigest) return;
+      return await getCredentials(
+        holoKeyGenSigDigest,
+        holoAuthSigDigest,
+        false
       );
-      setLoadingCreds(false);
-    } catch (error) {
-      console.error(error);
-      setLoadingCreds(false);
-    }
-  }
+    },
+    onSuccess(data) {
+      setSortedCreds(data as SortedCreds);
+    },
+    enabled: !!holoKeyGenSigDigest && !!holoAuthSigDigest
+  });
 
-  useEffect(() => {
-    // TODO: Use useQuery for this so that you only call this function once
-    loadCreds();
-  }, [holoKeyGenSigDigest, holoAuthSigDigest]);
-
-  async function storeCreds(sortedCreds: $TSFixMe, kolpProof: $TSFixMe) {
+  async function storeCreds(sortedCreds: SortedCreds, kolpProof: Proof) {
     const result = await storeCredentials(
       sortedCreds,
       holoKeyGenSigDigest,
       holoAuthSigDigest,
       kolpProof
     );
-    await loadCreds();
+    if (result) {
+      await loadCredsQuery.refetch();
+    }
     return result;
   }
 
@@ -122,11 +104,27 @@ function CredsProvider({ children }: PropsWithChildren) {
       value={{
         phoneNumCreds,
         medicalCreds,
-        sortedCreds,
-        loadingCreds,
         govIdCreds,
-        reloadCreds: loadCreds,
-        storeCreds
+        sortedCreds,
+        loadingCreds: loadCredsQuery.isLoading,
+        reloadCreds: async () => {
+          await loadCredsQuery.refetch();
+        },
+        storeCreds,
+        getHasNecessaryCreds(proofType: ProofType) {
+          const { govIdCreds, phoneNumCreds, medicalCreds } = useCreds();
+          switch (proofType) {
+            case 'us-residency':
+            case 'uniqueness':
+              return Boolean(govIdCreds?.creds);
+            case 'uniqueness-phone':
+              return Boolean(phoneNumCreds?.creds);
+            case 'medical-specialty':
+              return Boolean(medicalCreds?.creds);
+            default:
+              return false;
+          }
+        }
       }}
     >
       {children}

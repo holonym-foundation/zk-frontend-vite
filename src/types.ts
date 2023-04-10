@@ -1,9 +1,7 @@
 import { type ethers } from 'ethers';
-import {
-  type IdServerGetCredentialsRespnse,
-  type issuerAddressSchema
-} from './id-server';
-import { type z } from 'zod';
+import { type IdServerGetCredentialsRespnse } from './id-server';
+import { type serverAddress } from './constants';
+import { Eq } from 'expect-type';
 
 export type $TSFixMe = any;
 
@@ -33,14 +31,30 @@ export interface CredentialsSecret {
   newLeafPreimage: string[];
   newLeaf: string;
 }
-
 export type RawCredentials = IdServerGetCredentialsRespnse & CredentialsSecret;
 
 export type Creds = IdServerGetCredentialsRespnse['creds'];
+export type CredsWithSecret = Creds & CredentialsSecret;
 
-export type IssuerAddress = z.infer<typeof issuerAddressSchema>;
+export interface CredsForProof {
+  newSecret: string;
+  serializedAsNewPreimage: SerializedCreds;
+}
+
+export type IssuerAddress = (typeof serverAddress)[keyof typeof serverAddress];
 
 export type SerializedCreds = [string, string, string, string, string, string];
+
+export type SortedCreds = Partial<{
+  [k in IssuerAddress]: RawCredentials & {
+    creds: CredsForProof;
+  };
+}>;
+
+export type GovIdCreds = SortedCreds[(typeof serverAddress)['idgov-v2']];
+export type PhoneNumCreds = SortedCreds[(typeof serverAddress)['phone-v2']];
+export type MedicalCreds = SortedCreds[(typeof serverAddress)['med']];
+export type CredsArray = SortedCreds[keyof SortedCreds];
 
 export type ProofType =
   | 'uniqueness-phone'

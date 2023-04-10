@@ -9,7 +9,7 @@ import PhoneNumberIssuance from './components/issuance/PhoneNumberIssuance';
 import MedicalCredentialsIssuance from './components/issuance/MedicalCredentialsIssuance';
 import ExternalIssuance from './components/issuance/ExternalIssuance';
 import { OnChainProofs } from './App';
-import Register from './components/register';
+import Register from './components/register/RegisterScreen';
 
 export function AppRoutes() {
   return (

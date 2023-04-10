@@ -1,7 +1,7 @@
 import { type Node } from '@zk-kit/incremental-merkle-tree';
 import { ethers } from 'ethers';
 import { type defaultActionId } from '../../constants';
-import { type SerializedCreds } from '../../types';
+import { type CredsForProof } from '../../types';
 import { type GetMerkleProofParamsResult } from '../getMerkleProofParams';
 import { poseidonTwoInputs } from '../zokrates';
 
@@ -14,7 +14,7 @@ export async function getSybilPhone({
 }: {
   sender: string;
   phoneNumCreds: {
-    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
+    creds: CredsForProof;
   };
   actionId: string | typeof defaultActionId;
   mp: GetMerkleProofParamsResult;

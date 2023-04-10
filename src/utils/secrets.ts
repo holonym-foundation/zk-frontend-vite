@@ -1,9 +1,9 @@
 import {
-  type IssuerAddress,
   type Proof,
   type ProofMetadata,
   type ProofType,
-  type SerializedCreds
+  type SerializedCreds,
+  type SortedCreds
 } from './../types';
 import { Buffer } from 'buffer';
 import { ethers } from 'ethers';
@@ -200,7 +200,7 @@ export async function getCredentials(
   let mergedCreds = {};
   for (const issuer of issuerWhitelist) {
     const credsFromIssuer = allCreds.filter(
-      (sortedCredsTemp) => sortedCredsTemp[issuer]
+      (sortedCredsTemp: Record<string, any>) => sortedCredsTemp[issuer]
     );
     if (credsFromIssuer.length === 1) {
       mergedCreds = {
@@ -263,12 +263,7 @@ export async function getCredentials(
  * @returns True if storage in remote backup is successful, false otherwise.
  */
 export async function storeCredentials(
-  creds: Record<
-    IssuerAddress,
-    {
-      creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
-    }
-  >,
+  creds: SortedCreds,
   holoKeyGenSigDigest: string,
   holoAuthSigDigest: string,
   proof?: Proof

@@ -3,7 +3,11 @@ import { defaultActionId } from '../constants';
 import { computeWitness, generateProof } from './zokrates';
 // @ts-expect-error
 import { groth16 } from 'snarkjs';
-import { type RawCredentials, type SerializedCreds } from '../types';
+import {
+  type RawCredentials,
+  type SerializedCreds,
+  type CredsForProof
+} from '../types';
 import { type IdServerGetCredentialsRespnse } from '../id-server';
 import { createProof } from './createProof';
 import { getKnowledgeOfLeafPreimage } from './circuits/knowledgeOfLeafPreimage';
@@ -26,7 +30,7 @@ export async function onAddLeafProof(data: RawCredentials) {
     customFields: data.creds.customFields,
     scope: data.creds.scope
   };
-  return await groth16.fullProve(
+  return groth16.fullProve(
     params,
     'https://preproc-zkp.s3.us-east-2.amazonaws.com/circom/onAddLeaf_js/onAddLeaf.wasm',
     'https://preproc-zkp.s3.us-east-2.amazonaws.com/circom/onAddLeaf_0001.zkey'
@@ -40,7 +44,7 @@ export async function onAddLeafProof(data: RawCredentials) {
 export async function proofOfResidency(
   sender: string,
   govIdCreds: {
-    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
+    creds: CredsForProof;
   }
 ) {
   console.log('PROOF: us-residency: starting');
@@ -64,7 +68,7 @@ export async function proofOfResidency(
 export async function antiSybil(
   sender: string,
   govIdCreds: {
-    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
+    creds: CredsForProof;
   },
   actionId = defaultActionId
 ) {
@@ -89,7 +93,7 @@ export async function antiSybil(
 export async function sybilPhone(
   sender: string,
   phoneNumCreds: {
-    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
+    creds: CredsForProof;
   },
   actionId = defaultActionId
 ) {
@@ -109,10 +113,7 @@ export async function sybilPhone(
 export async function proofOfMedicalSpecialty(
   sender: string | undefined,
   medicalCreds: {
-    creds: {
-      newSecret: string;
-      serializedAsNewPreimage: SerializedCreds;
-    };
+    creds: CredsForProof;
   }
 ) {
   console.log('PROOF: medical-specialty: starting');
@@ -144,32 +145,34 @@ export async function proveKnowledgeOfLeafPreimage(
   newSecret: string
 ) {
   console.log('proveKnowledgeOfLeafPreimage called');
-  const proof = generateProof(
+  const proof = await generateProof(
     'knowledgeOfLeafPreimage',
-    await computeWitness(
-      'knowledgeOfLeafPreimage',
-      await getKnowledgeOfLeafPreimage({
-        serializedCreds,
-        newSecret,
-        ...(await loadMerkleProofParams(
-          mergeNewSecret(serializedCreds, newSecret),
-          'knowledgeOfLeafPreimage'
-        ).then(({ leaf, mp }) => ({
-          mp,
-          leaf: ethers.BigNumber.from(leaf).toString()
-        })))
-      })
+    (
+      await computeWitness(
+        'knowledgeOfLeafPreimage',
+        await getKnowledgeOfLeafPreimage({
+          serializedCreds,
+          newSecret,
+          ...(await loadMerkleProofParams(
+            mergeNewSecret(serializedCreds, newSecret),
+            'knowledgeOfLeafPreimage'
+          ).then(({ leaf, mp }) => ({
+            mp,
+            leaf: ethers.BigNumber.from(leaf).toString()
+          })))
+        })
+      )
     ).witness
   );
   console.log('proveKnowledgeOfLeafPreimage proof', proof);
-  return await proof;
+  return proof;
 }
 
 /**
  * @param govIdCreds - object issued from id-server
  */
 export async function proveGovIdFirstNameLastName(
-  govIdCreds: IdServerGetCredentialsRespnse & {
+  govIdCreds: RawCredentials & {
     newLeaf: string;
     creds: { newSecret: string };
   }
@@ -177,15 +180,17 @@ export async function proveGovIdFirstNameLastName(
   console.log('proveGovIdFirstNameLastName called');
   const proof = generateProof(
     'govIdFirstNameLastName',
-    await computeWitness(
-      'govIdFirstNameLastName',
-      await getGovIdFirstNameLastName({
-        ...govIdCreds,
-        ...(await loadMerkleProofParams(
-          govIdCreds.newLeaf,
-          'govIdFirstNameLastName'
-        ))
-      })
+    (
+      await computeWitness(
+        'govIdFirstNameLastName',
+        await getGovIdFirstNameLastName({
+          ...govIdCreds,
+          ...(await loadMerkleProofParams(
+            [govIdCreds.newLeaf],
+            'govIdFirstNameLastName'
+          ))
+        })
+      )
     ).witness
   );
   console.log('proveGovIdFirstNameLastName proof', proof);

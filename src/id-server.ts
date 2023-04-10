@@ -1,9 +1,12 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
 import { z } from 'zod';
-import { idServerUrl } from './constants';
+import { serverAddress, idServerUrl } from './constants';
 
-export const issuerAddressSchema = z.string().startsWith('0x').length(132);
+// @ts-expect-error - zod doesn't support union types
+const issuerAddressSchema = z.union(Object.values(serverAddress));
+
+export type IssuerAddress = (typeof serverAddress)[keyof typeof serverAddress];
 
 export interface IdServerError {
   error: string;
@@ -76,13 +79,14 @@ export interface UserCredentialsSchema {
   encryptedCredentialsAES: string;
 }
 const maybeThrowServerErrorOrReturnData = <T>(response: AxiosResponse<T>) => {
-  if (!response.data) throw new Error('No data returned from id server');
-  if ('error' in (response.data as unknown as { error?: unknown })) {
-    // rome-ignore lint/style/noNonNullAssertion: <explanation>
-    throw new Error(
-      'Error fetching from id server',
-      (response.data as unknown as { error?: unknown }).error
-    );
+  if (!response.data) {
+    throw new Error('No data returned from id server');
+  } else if (
+    typeof response.data === 'object' &&
+    'error' in response.data &&
+    response.data.error
+  ) {
+    throw new Error('Error fetching from id server', response.data.error);
   }
   return response.data;
 };
@@ -111,11 +115,10 @@ export const getProofMetadata = async (sigDigest: string) =>
     )
     .then((response) => response.data);
 
-export const postProofMetadata = async (reqBody: UserProofMetadata) => {
-  const resp = await axios
+export const postProofMetadata = async (reqBody: UserProofMetadata) =>
+  await axios
     .post(`${idServerUrl}/proof-metadata`, reqBody)
     .then((response) => response.data);
-};
 
 export const getVeriffSession = async () =>
   await axios

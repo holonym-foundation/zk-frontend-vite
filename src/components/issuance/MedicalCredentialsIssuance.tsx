@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { toFormikValidationSchema } from 'zod-formik-adapter';
 import FinalStep from './FinalStep';
 import StepSuccess from './StepSuccess';
-import { steps, medDAOIssuerOrigin, serverAddress } from '../../constants';
+import { steps, medDAOIssuerOrigin } from '../../constants';
 import IssuanceContainer from './IssuanceContainer';
 import { useCreds } from '../../context/Creds';
 import { useQuery } from '@tanstack/react-query';
@@ -19,7 +19,7 @@ const forceReload = false;
 const VerificationRequestForm = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string>();
-  const { sortedCreds, loadingCreds, govIdCreds } = useCreds();
+  const { govIdCreds } = useCreds();
   const govIdFirstNameLastNameProofQuery = useQuery(
     ['govIdFirstNameLastNameProof'],
     async () => {
@@ -32,7 +32,6 @@ const VerificationRequestForm = () => {
         });
       } else {
         try {
-          // @ts-expect-error TS(2322): Type '{ uniquenessProof: null; loadUniquenessProof... Remove this comment to see the full error message
           return await proveGovIdFirstNameLastName(govIdCreds);
         } catch (err) {
           console.error(err);
@@ -41,15 +40,6 @@ const VerificationRequestForm = () => {
     },
     { enabled: !(govIdCreds == null) }
   );
-
-  useEffect(() => {
-    if (loadingCreds) return;
-    (async () => {
-      const creds = sortedCreds[serverAddress['idgov-v2']];
-      setGovIdCreds(creds);
-      console.log('govIdCreds', creds);
-    })();
-  }, [sortedCreds, loadingCreds]);
 
   async function onSubmit(
     values: { firstName: string; lastName: string; npiNumber: string },
@@ -206,11 +196,13 @@ const VerificationRequestForm = () => {
                 className="x-button secondary outline"
                 style={{ width: '100%', marginLeft: 'auto' }}
                 type="submit"
-                disabled={isSubmitting || !govIdFirstNameLastNameProof}
+                disabled={
+                  isSubmitting || !govIdFirstNameLastNameProofQuery.data
+                }
               >
                 {isSubmitting
                   ? 'Submitting...'
-                  : !govIdFirstNameLastNameProof
+                  : !govIdFirstNameLastNameProofQuery.data
                   ? 'Loading proof...'
                   : 'Submit'}
               </button>
@@ -224,7 +216,7 @@ const VerificationRequestForm = () => {
 
 function useMedicalCredentialsIssuance() {
   const { store } = useParams();
-  const [success, setSuccess] = useState();
+  const [success, setSuccess] = useState<boolean>();
   const currentStep = useMemo(() => {
     if (store == null) return 'Verify';
     if (store.length > 0) return 'Finalize';
@@ -250,16 +242,19 @@ const MedicalCredentialsIssuance = () => {
     useMedicalCredentialsIssuance();
 
   useEffect(() => {
+    const registerCredentialType = window.localStorage.getItem(
+      'register-credentialType'
+    );
+    const registerProofType = window.localStorage.getItem('register-proofType');
+    const registerCallback = window.localStorage.getItem('register-callback');
     if (
       success &&
-      window.localStorage.getItem('register-credentialType') != null
+      registerCredentialType != null &&
+      registerProofType != null &&
+      registerCallback != null
     ) {
       navigate(
-        `/register?credentialType=${window.localStorage.getItem(
-          'register-credentialType'
-        )}&proofType=${window.localStorage.getItem(
-          'register-proofType'
-        )}&callback=${window.localStorage.getItem('register-callback')}`
+        `/register?credentialType=${registerCredentialType}&proofType=${registerProofType}&callback=${registerCallback}`
       );
     }
   }, [success]);
@@ -271,7 +266,6 @@ const MedicalCredentialsIssuance = () => {
       ) : currentStep === 'Verify' ? (
         <VerificationRequestForm /> // currentStep === "Finalize" ? (
       ) : (
-        // @ts-expect-error TS(2345): Argument of type 'true' is not assignable to param... Remove this comment to see the full error message
         <FinalStep
           onSuccess={() => {
             setSuccess(true);

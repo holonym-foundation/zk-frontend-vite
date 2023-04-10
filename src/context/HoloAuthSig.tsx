@@ -36,7 +36,6 @@ function HoloAuthSigProvider({ children }: $TSFixMe) {
     [holoAuthSigDigest]
   );
   const {
-    data: signedAuthMessage,
     isError: holoAuthSigIsError,
     isLoading: holoAuthSigIsLoading,
     isSuccess: holoAuthSigIsSuccess,

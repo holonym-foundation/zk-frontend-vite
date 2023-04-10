@@ -61,8 +61,7 @@ function populateProofMetadataDisplayDataAndRestructure(
 
 export default function PublicInfoCard() {
   const navigate = useNavigate();
-  // @ts-expect-error TS(2339): Property 'proofMetadata' does not exist on type 'n... Remove this comment to see the full error message
-  const { proofMetadata, loadingProofMetadata } = useProofMetadata();
+  const { proofMetadata } = useProofMetadata();
   const [formattedProofMetadata, setFormattedProofMetadata] = useState();
 
   useEffect(() => {

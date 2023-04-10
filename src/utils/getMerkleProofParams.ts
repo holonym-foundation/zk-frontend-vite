@@ -33,15 +33,15 @@ export const restoreTree = async (
  * (Forked from holo-merkle-utils)
  * Serializes createProof outputs to ZoKrates format
  */
-export function serializeProof(
+export async function serializeProof(
   proof: MerkleProof,
-  hash: (input: string[]) => string
+  hash: (input: string[]) => Promise<string>
 ) {
   // Insert the digest of the leaf at every level:
   let digest = proof.leaf;
   for (let i = 0; i < proof.siblings.length; i++) {
     proof.siblings[i].splice(proof.pathIndices[i], 0, digest);
-    digest = hash(proof.siblings[i]);
+    digest = await hash(proof.siblings[i]);
   }
 
   // serialize
@@ -67,7 +67,7 @@ export async function getMerkleProofParams(leaf: Node) {
 
   const index = tree.indexOf(leaf);
   const merkleProof = tree.createProof(index);
-  const [root_, leaf_, path_, indices_] = serializeProof(
+  const [root_, leaf_, path_, indices_] = await serializeProof(
     merkleProof,
     poseidonHashQuinary
   );
@@ -92,14 +92,13 @@ export const loadMerkleProofParams = async (
   serializedCreds: unknown[],
   circuitName: CircuitName
 ) => {
-  Promise.all([
+  await Promise.all([
     load('artifacts', 'createLeaf'),
     load('provingKey', 'createLeaf')
   ]);
-  const leaf = computeWitness('createLeaf', serializedCreds).output.replaceAll(
-    '"',
-    ''
-  );
+  const leaf = (
+    await computeWitness('createLeaf', serializedCreds)
+  ).output.replaceAll('"', '');
   const [mp] = await Promise.all([
     getMerkleProofParams(leaf),
     load('artifacts', circuitName),

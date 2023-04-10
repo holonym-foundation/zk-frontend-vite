@@ -4,7 +4,6 @@ import { HoloAuthSigProvider } from './context/HoloAuthSig';
 import { HoloKeyGenSigProvider } from './context/HoloKeyGenSig';
 import { ProofMetadataProvider } from './context/ProofMetadata';
 import { CredsProvider } from './context/Creds';
-import { ProofsProvider } from './context/Proofs';
 import { Provider as WagmiProvider } from 'wagmi';
 import { wagmiClient } from './wagmiClient';
 import AccountConnectGate from './gate/AccountConnectGate';

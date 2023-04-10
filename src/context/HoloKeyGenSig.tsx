@@ -42,7 +42,6 @@ function HoloKeyGenSigProvider({ children }: PropsWithChildren) {
     [holoKeyGenSigDigest]
   );
   const {
-    data: signedKeyGenMessage,
     isError: holoKeyGenSigIsError,
     isLoading: holoKeyGenSigIsLoading,
     isSuccess: holoKeyGenSigIsSuccess,

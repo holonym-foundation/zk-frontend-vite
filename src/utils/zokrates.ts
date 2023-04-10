@@ -105,7 +105,7 @@ export async function poseidonTwoInputs(args: [string, string]) {
  * @returns {string}
  */
 export async function poseidonHashQuinary(
-  input: [string, string, string, string, string]
+  input: [string, string, string, string, string] | string[]
 ) {
   if (input.length !== 5 || !Array.isArray(input)) {
     throw new Error('input must be an array of length 5');

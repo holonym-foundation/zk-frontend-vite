@@ -5,10 +5,10 @@
  * page, which in turn decreases the time the user spends waiting for
  * a proof to load.
  */
-import { type IdServerGetCredentialsRespnse } from '../id-server';
 import {
   proofOfResidency,
   antiSybil,
+  sybilPhone,
   proofOfMedicalSpecialty,
   proveGovIdFirstNameLastName,
   proveKnowledgeOfLeafPreimage
@@ -20,20 +20,13 @@ const generatingProof = {
   'us-residency': false,
   'medical-specialty': false,
   'gov-id-firstname-lastname': false,
-  kolp: false // == "Knowlege of Leaf Preimage"
+  kolp: false, // == "Knowlege of Leaf Preimage",
+  'uniqueness-phone': false
 };
 
 async function loadProof(
-  proofFunction: (...args: any[]) => Promise<{
-    (sender: string, govIdCreds: [], actionId?: string): Promise<any>;
-    (sender: string, phoneNumCreds: $TSFixMe, actionId?: string): Promise<any>;
-    (sender: $TSFixMe, govIdCreds: $TSFixMe): Promise<any>;
-    (sender: $TSFixMe, medicalCreds: $TSFixMe): Promise<any>;
-    (govIdCreds: $TSFixMe): Promise<any>;
-    (serializedCreds: $TSFixMe, newSecret: $TSFixMe): Promise<any>;
-    (arg0: any): any;
-  }>,
-  args: any[],
+  proofFunction: (...args: any[]) => Promise<object>,
+  args: unknown[],
   proofType: keyof typeof generatingProof,
   forceReload: boolean
 ) {
@@ -55,58 +48,45 @@ async function loadProof(
 }
 
 onmessage = async (event) => {
+  const data = event.data;
+  if (!data) return;
   await Promise.all([
     load('artifacts', 'poseidonQuinary'),
     load('artifacts', 'poseidonTwoInputs')
   ]);
-  // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-  if (event.data && event.data.message === 'uniqueness') {
-    const args = [
-      event.data.userAddress,
-      event.data.govIdCreds,
-      event.data.actionId
-    ];
-    loadProof(antiSybil, args, 'uniqueness', event.data.forceReload);
-  } else if (event.data && event.data.message === 'uniqueness-phone') {
-    const args = [
-      event.data.userAddress,
-      event.data.phoneNumCreds,
-      event.data.actionId
-    ];
-    loadProof(
-      uniquenessPhone,
-      args,
-      'uniqueness-phone',
-      event.data.forceReload
-    );
-  } else if (event.data && event.data.message === 'us-residency') {
-    const args = [event.data.userAddress, event.data.govIdCreds];
-    loadProof(proofOfResidency, args, 'us-residency', event.data.forceReload);
-  } else if (event.data && event.data.message === 'medical-specialty') {
-    const args = [event.data.userAddress, event.data.medicalCreds];
-    loadProof(
-      proofOfMedicalSpecialty,
-      args,
-      'medical-specialty',
-      event.data.forceReload
-    );
-  } else if (event.data && event.data.message === 'gov-id-firstname-lastname') {
-    const args = [event.data.govIdCreds];
-    loadProof(
-      proveGovIdFirstNameLastName,
-      args,
-      'gov-id-firstname-lastname',
-      event.data.forceReload
-    );
-  } else if (event.data && event.data.message === 'kolp') {
-    const args = [event.data.serializedAsNewPreimage, event.data.newSecret];
-    loadProof(
-      proveKnowledgeOfLeafPreimage,
-      args,
-      'kolp',
-      event.data.forceReload
-    );
-  } else {
-    postMessage({ error: 'Unknown message', proofType: null, proof: null });
+  switch (data.message) {
+    case 'uniqueness': {
+      // prettier-ignore
+      await loadProof(antiSybil, [data.userAddress, data.govIdCreds, data.actionId], 'uniqueness', data.forceReload);
+      break;
+    }
+    case 'uniqueness-phone': {
+      // prettier-ignore
+      await loadProof(sybilPhone, [data.userAddress, data.phoneNumCreds, data.actionId], 'uniqueness-phone', data.forceReload);
+      break;
+    }
+    case 'us-residency': {
+      // prettier-ignore
+      await loadProof(proofOfResidency, [data.userAddress, data.govIdCreds], 'us-residency', data.forceReload);
+      break;
+    }
+    case 'medical-specialty': {
+      // prettier-ignore
+      await loadProof(proofOfMedicalSpecialty, [data.userAddress, data.medicalCreds], 'medical-specialty', data.forceReload);
+      break;
+    }
+    case 'gov-id-firstname-lastname': {
+      // prettier-ignore
+      await loadProof(proveGovIdFirstNameLastName, [data.govIdCreds], 'gov-id-firstname-lastname', data.forceReload);
+      break;
+    }
+    case 'kolp': {
+      // prettier-ignore
+      await loadProof( proveKnowledgeOfLeafPreimage, [data.serializedAsNewPreimage, data.newSecret], 'kolp', data.forceReload);
+      break;
+    }
+    default: {
+      postMessage({ error: 'Unknown message', proofType: null, proof: null });
+    }
   }
 };

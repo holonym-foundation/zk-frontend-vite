@@ -1,17 +1,11 @@
-import { useNavigate } from 'react-router-dom';
-// import residencyStoreABI from "../constants/abi/zk-contracts/ResidencyStore.json";
-// import antiSybilStoreABI from "../constants/abi/zk-contracts/AntiSybilStore.json";
+import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, type MouseEventHandler } from 'react';
 import { Oval } from 'react-loader-spinner';
-import { useQuery } from 'wagmi';
 import { Success } from '../success';
 import { truncateAddress } from '../../utils/ui-helpers';
 import RoundedWindow from '../RoundedWindow';
-import { useProofMetadata } from '../../context/ProofMetadata';
-import { defaultChainToProveOn } from '../../constants';
-import Relayer from '../../utils/relayer';
-import useGenericProofsState from './useGenericProofsState';
-
-const SUBMIT_PROOF = 'submitProof';
+import { proofs } from '../../constants';
+import { useQuery } from '@tanstack/react-query';
 
 const CustomOval = () => (
   <Oval
@@ -28,8 +22,9 @@ const CustomOval = () => (
   />
 );
 
-// @ts-expect-error TS(7006): Parameter 'props' implicitly has an 'any' type.
-const LoadingProofsButton = (props) => (
+const LoadingProofsButton = (props: {
+  onClick: MouseEventHandler<HTMLButtonElement> | undefined;
+}) => (
   <button className="x-button" onClick={props.onClick}>
     <div
       style={{
@@ -45,89 +40,49 @@ const LoadingProofsButton = (props) => (
 );
 
 const Proofs = () => {
+  const params = useParams() as {
+    proofType: keyof typeof proofs;
+    callback: string;
+  };
   const navigate = useNavigate();
-  const {
-    params,
-    proofs,
-    alreadyHasSBT,
-    accountReadyAddress,
-    hasNecessaryCreds,
-    proof,
-    submissionConsent,
-    setSubmissionConsent,
-    proofSubmissionSuccess,
-    setProofSubmissionSuccess,
-    error,
-    setError
-  } = useGenericProofsState();
-  // @ts-expect-error TS(2339): Property 'addProofMetadataItem' does not exist on ... Remove this comment to see the full error message
-  const { addProofMetadataItem } = useProofMetadata();
-
-  const submitProofQuery = useQuery(
-    ['submitProof'],
-    // @ts-expect-error TS(2345): Argument of type '() => Promise<any>' is not assig... Remove this comment to see the full error message
-    async () => {
-      // @ts-expect-error TS(2554): Expected 5 arguments, but got 3.
-      return await Relayer.prove(
-        proof,
-        // @ts-expect-error TS(2538): Type 'undefined' cannot be used as an index type.
-        proofs[params.proofType].contractName,
-        defaultChainToProveOn
-      );
+  const proofSubmissionSuccess = true;
+  // const error: { message: string } | null = null;
+  const errorMessage = '';
+  const alreadyHasSBT = false;
+  const hasNecessaryCreds = false;
+  const accountReadyAddress = '';
+  const proof = null;
+  const submissionConsentQuery = useQuery(['submission-consent'], {
+    queryFn: async () => {
+      return '';
     },
-    {
-      enabled: !!(submissionConsent && proof),
-      onSuccess: (result) => {
-        console.log('result from submitProof');
-        console.log(result);
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        if (result.error) {
-          console.log('error', result);
-          setError({
-            // @ts-expect-error TS(2345): Argument of type '{ type: string; message: any; }'... Remove this comment to see the full error message
-            type: SUBMIT_PROOF,
-            // @ts-expect-error TS(2571): Object is of type 'unknown'.
-            message:
-              result?.error?.response?.data?.error?.reason ??
-              // @ts-expect-error TS(2571): Object is of type 'unknown'.
-              result?.error?.message
-          });
-        } else {
-          addProofMetadataItem(
-            result,
-            // @ts-expect-error TS(2532): Object is possibly 'undefined'.
-            proof.inputs[1],
-            params.proofType,
-            params.actionId
-          );
-          setProofSubmissionSuccess(true);
-        }
-      },
-      onError: (error) => {
-        console.log('error', error);
-        setError({
-          // @ts-expect-error TS(2345): Argument of type '{ type: string; message: any; }'... Remove this comment to see the full error message
-          type: SUBMIT_PROOF,
-          // @ts-expect-error TS(2571): Object is of type 'unknown'.
-          message: error?.response?.data?.error?.reason ?? error?.message
-        });
+    enabled: false
+  });
+  const setSubmissionConsent = (value: boolean) => {};
+
+  useEffect(() => {
+    if (proofSubmissionSuccess) {
+      if (params.callback) {
+        window.location.href = `https://${params.callback}`;
+      }
+      const registerCredentialType = window.localStorage.getItem(
+        'register-credentialType'
+      );
+      const registerProofType =
+        window.localStorage.getItem('register-proofType');
+      const registerCallback = window.localStorage.getItem('register-callback');
+      if (registerCredentialType && registerProofType && registerCallback) {
+        navigate(
+          `/register?credentialType=${registerCredentialType}&proofType=${registerProofType}&callback=${registerCallback}`
+        );
       }
     }
-  );
+  }, [proofSubmissionSuccess]);
 
   if (proofSubmissionSuccess) {
-    if (params.callback) window.location.href = `https://${params.callback}`;
-    if (window.localStorage.getItem('register-proofType')) {
-      navigate(
-        `/register?credentialType=${window.localStorage.getItem(
-          'register-credentialType'
-        )}&proofType=${window.localStorage.getItem(
-          'register-proofType'
-        )}&callback=${window.localStorage.getItem('register-callback')}`
-      );
-    }
     return <Success title="Success" />;
   }
+
   return (
     <RoundedWindow>
       <div
@@ -138,16 +93,11 @@ const Proofs = () => {
           justifyContent: 'center'
         }}
       >
-        // @ts-expect-error TS(2538): Type 'undefined' cannot be used as an
-        index type.
         <h2>Prove {proofs[params.proofType].name}</h2>
         <div className="spacer-med" />
         <br />
-        // @ts-expect-error TS(2339): Property 'message' does not exist on type
-        'never'.
-        {error?.message ? (
-          // @ts-expect-error TS(2339): Property 'message' does not exist on type 'never'.
-          <p>Error: {error.message}</p>
+        {errorMessage ? (
+          <p>Error: {errorMessage}</p>
         ) : alreadyHasSBT ? (
           <p>You already have a soul-bound token (SBT) for this attribute.</p>
         ) : hasNecessaryCreds ? (
@@ -162,8 +112,7 @@ const Proofs = () => {
             >
               soul-bound token
             </a>{' '}
-            (SBT) showing only this one attribute of you: // @ts-expect-error
-            TS(2538): Type 'undefined' cannot be used as an index type.
+            (SBT) showing only this one attribute of you:{' '}
             <code>{proofs[params.proofType].name}</code>. It may take 5-15
             seconds to load.
           </p>
@@ -184,9 +133,11 @@ const Proofs = () => {
           proof ? (
             <button
               className="x-button"
-              onClick={() => setSubmissionConsent(true)}
+              onClick={() => {
+                setSubmissionConsent(true);
+              }}
             >
-              {submissionConsent && submitProofQuery.isFetching ? (
+              {submissionConsentQuery.isFetching ? (
                 <div
                   style={{
                     display: 'flex',
@@ -202,7 +153,7 @@ const Proofs = () => {
               )}
             </button>
           ) : (
-            <LoadingProofsButton />
+            <LoadingProofsButton onClick={undefined} />
           )
         ) : (
           ''

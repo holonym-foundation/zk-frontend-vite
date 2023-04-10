@@ -14,6 +14,8 @@ interface State {
   confirmationStatus: 'init' | 'confirmed' | 'denied' | 'confirmationRequired';
   credsThatWillBeOverwritten: RawCredentials | undefined;
   mergedSortedCreds: Record<string, RawCredentials> | undefined;
+  onConfirmOverwrite: () => void;
+  onDenyOverwrite: () => void;
 }
 
 export function useMergeCreds({
@@ -63,6 +65,8 @@ export function useMergeCreds({
         newCreds.creds.issuerAddress.toLowerCase()
       )
     ) {
+      // ts-expect-error - this is a runtime error, not a type error
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       setError(`Issuer ${newCreds.creds.issuerAddress} is not whitelisted.`);
       return;
     }

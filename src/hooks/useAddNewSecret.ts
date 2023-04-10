@@ -23,7 +23,7 @@ export function useAddNewSecret({
     mutate
   } = useMutation(async () => {
     const newSecret =
-      sessionStorage.getItem(`holoNewSecret-${retrievalEndpoint}`) ||
+      sessionStorage.getItem(`holoNewSecret-${retrievalEndpoint}`) ??
       generateSecret();
     sessionStorage.setItem(`holoNewSecret-${retrievalEndpoint}`, newSecret);
 

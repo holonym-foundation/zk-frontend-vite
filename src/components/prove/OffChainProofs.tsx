@@ -1,12 +1,12 @@
-import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useQuery } from 'wagmi';
-import { clientPortalUrl } from '../../constants';
+import { useMemo } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { clientPortalUrl, proofs } from '../../constants';
 // import residencyStoreABI from "../constants/abi/zk-contracts/ResidencyStore.json";
 // import antiSybilStoreABI from "../constants/abi/zk-contracts/AntiSybilStore.json";
 import { Oval } from 'react-loader-spinner';
 import RoundedWindow from '../RoundedWindow';
-import useGenericProofsState from './useGenericProofsState';
+import { useQuery } from '@tanstack/react-query';
+import { useCreds } from '../../context/Creds';
 
 const CustomOval = () => (
   <Oval
@@ -23,8 +23,7 @@ const CustomOval = () => (
   />
 );
 
-// @ts-expect-error TS(7006): Parameter 'props' implicitly has an 'any' type.
-const LoadingProofsButton = (props) => (
+const LoadingProofsButton = (props: { onClick: () => void }) => (
   <button className="x-button" onClick={props.onClick}>
     <div
       style={{
@@ -39,85 +38,71 @@ const LoadingProofsButton = (props) => (
   </button>
 );
 
-const Proofs = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { params, proofs, hasNecessaryCreds, proof, error, setError } =
-    useGenericProofsState();
+const useHook = () => {
+  const [searchParams] = useSearchParams();
+  const params = useParams() as {
+    proofType: keyof typeof proofs;
+    callback: string;
+  };
+  const { getHasNecessaryCreds } = useCreds();
+  const hasNecessaryCreds = getHasNecessaryCreds(params.proofType);
+  const sessionId = searchParams.get('sessionId');
+  const callbackUrl = searchParams.get('callback');
 
-  const sessionQuery = useQuery(
-    ['getSession'],
-    // @ts-expect-error TS(2345): Argument of type '() => Promise<any>' is not assig... Remove this comment to see the full error message
-    async () => {
-      try {
-        if (!searchParams.get('sessionId')) return { error: 'No session id' };
-        const sessionId = searchParams.get('sessionId');
-        const resp = await fetch(
-          `${clientPortalUrl}/api/sessions/${sessionId}`
-        );
-        return await resp.json();
-      } catch (err) {
-        console.error(err);
-        return { error: err };
-      }
+  const sessionQuery = useQuery(['getSession'], {
+    queryFn: async () => {
+      if (!sessionId) return;
+      const resp = await fetch(`${clientPortalUrl}/api/sessions/${sessionId}`);
+      return (await resp.json()) as { sessionId: string; error: any };
     },
-    {
-      refetchOnWindowFocus: false,
-      onError: (err) => {
-        console.error(err);
-      }
-      // enabled:
-      // onSuccess:
-      // onError:
-    }
+    enabled: !!sessionId
+  });
+
+  // 3. Redirect user to callback URL & include proof in query params
+  const isInvalidSession = useMemo(
+    () =>
+      !!sessionId &&
+      sessionQuery.isSuccess &&
+      sessionQuery.data?.sessionId !== sessionId,
+    [sessionId, sessionQuery.isSuccess, sessionQuery.data?.sessionId]
   );
 
-  // Steps:
-  // 1. Ensure sessionId and callback params are present
-  // 2. Ensure sessionId is valid
-  // 3. Redirect user to callback URL & include proof in query params
+  const errorMessage = useMemo(() => {
+    if (!(sessionId ?? callbackUrl)) return 'Missing sessionId and callback';
+    if (sessionQuery.isError) return 'Failed to get session';
+    if (sessionQuery.data?.error)
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      return `Failed to get session: ${sessionQuery.data.error}`;
+    if (sessionQuery.isSuccess && sessionQuery.data?.sessionId !== sessionId)
+      return 'Invalid sessionId';
+  }, [sessionId, callbackUrl]);
 
-  useEffect(() => {
-    (async () => {
-      // Get sessionId and callback from URL
-      const sessionId = searchParams.get('sessionId');
-      const callbackUrl = searchParams.get('callback');
-      // @ts-expect-error TS(2345): Argument of type '{ message: string; }' is not ass... Remove this comment to see the full error message
-      if (!(sessionId || callbackUrl))
-        setError({ message: 'Missing sessionId and callback' });
-      // @ts-expect-error TS(2345): Argument of type '{ message: string; }' is not ass... Remove this comment to see the full error message
-      if (!sessionId) setError({ message: 'Missing sessionId' });
-      // @ts-expect-error TS(2345): Argument of type '{ message: string; }' is not ass... Remove this comment to see the full error message
-      if (!callbackUrl) setError({ message: 'Missing callback' });
-      else if (sessionId && callbackUrl) {
-        try {
-          console.log('sessionQuery.data before refetch', sessionQuery.data);
-          if (!sessionQuery.data) await sessionQuery.refetch(); // manually call queryFn
-          console.log('sessionQuery.data after refetch', sessionQuery.data);
-          // @ts-expect-error TS(2571): Object is of type 'unknown'.
-          const returnedSessionId = sessionQuery?.data?.sessionId;
-          // @ts-expect-error TS(2345): Argument of type '{ message: string; }' is not ass... Remove this comment to see the full error message
-          if (!returnedSessionId) setError({ message: 'Invalid sessionId' });
-          // @ts-expect-error TS(2571): Object is of type 'unknown'.
-          else if (sessionQuery?.data.error)
-            setError(sessionQuery?.data?.error?.message);
-        } catch (err) {
-          console.error(err);
-          // @ts-expect-error TS(2345): Argument of type '{ message: string; }' is not ass... Remove this comment to see the full error message
-          setError({ message: 'Invalid sessionId' });
-        }
-      }
-    })();
-  }, [sessionQuery?.data]);
+  return {
+    proof: null,
+    errorMessage,
+    proofName: proofs[params.proofType].name,
+    hasNecessaryCreds,
+    sessionQuery,
+    isInvalidSession,
+    handleSubmit() {
+      if (
+        sessionQuery.isError ||
+        !sessionQuery?.data ||
+        sessionQuery?.isError ||
+        !proof
+      )
+        return;
+      // Redirect user to callback URL & include proof in query params
+      const proofString = encodeURIComponent(JSON.stringify(proof));
+      // TODO: Encrypt (at least part of) proof using client's public encryption key
+      window.location.href = `${callbackUrl}?proof=${proofString}`;
+    }
+  };
+};
 
-  function handleSubmit() {
-    if (error || !sessionQuery?.data || sessionQuery?.isError || !proof) return;
-    // Redirect user to callback URL & include proof in query params
-    const callback = searchParams.get('callback');
-    const proofString = encodeURIComponent(JSON.stringify(proof));
-    // TODO: Encrypt (at least part of) proof using client's public encryption key
-    window.location.href = `${callback}?proof=${proofString}`;
-  }
-
+const Proofs = () => {
+  const { proof, hasNecessaryCreds, handleSubmit, proofName, errorMessage } =
+    useHook();
   return (
     <RoundedWindow>
       <div
@@ -128,25 +113,17 @@ const Proofs = () => {
           justifyContent: 'center'
         }}
       >
-        // @ts-expect-error TS(2538): Type 'undefined' cannot be used as an
-        index type.
-        <h2>Prove {proofs[params.proofType].name}</h2>
+        <h2>Prove {proofName}</h2>
         <div className="spacer-med" />
         <br />
-        // @ts-expect-error TS(2339): Property 'message' does not exist on type
-        'never'.
-        {error?.message ? (
-          // @ts-expect-error TS(2339): Property 'message' does not exist on type 'never'.
+        {errorMessage ? (
           <p style={{ color: 'red', fontSize: '1rem' }}>
-            Error: {error.message}
+            Error: {errorMessage}
           </p>
         ) : hasNecessaryCreds ? (
           <p>
             This will generate a proof showing only this one attribute of you:{' '}
-            // @ts-expect-error TS(2538): Type 'undefined' cannot be used as an
-            index type.
-            <code>{proofs[params.proofType].name}</code>. It may take 5-15
-            seconds to load.
+            <code>{proofName}</code>. It may take 5-15 seconds to load.
           </p>
         ) : (
           <p>

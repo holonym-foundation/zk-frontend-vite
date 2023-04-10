@@ -1,9 +1,4 @@
-import React, { useState } from 'react';
-import useSessionStorage from '../../hooks/useSessionStorage';
-
-function Banner() {
-  // const [showBanner, setShowBanner] = useSessionStorage('showBanner', true);
-
+function AnnouncementBanner() {
   return (
     <div
       style={{
@@ -84,4 +79,4 @@ function Banner() {
   );
 }
 
-export default Banner;
+export default AnnouncementBanner;

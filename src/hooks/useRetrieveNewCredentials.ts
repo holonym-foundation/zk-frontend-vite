@@ -58,7 +58,7 @@ export function useRetrieveNewCredentials({
 
   useEffect(() => {
     // Invalidate the cache and refetch when the retrievalEndpoint changes
-    queryClient.invalidateQueries(['newCredentials', retrievalEndpoint]);
+    void queryClient.invalidateQueries(['newCredentials', retrievalEndpoint]);
   }, [retrievalEndpoint, queryClient]);
 
   return {

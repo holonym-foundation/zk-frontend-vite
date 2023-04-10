@@ -52,7 +52,7 @@ export const serverAddress = {
       ? '0x2998cab3d07a64315f1e8399ecef60a19f478231663f8740703bd30a42a91ed4'
       : '0x0040b8810cbaed9647b54d18cc98b720e1e8876be5d8e7089d3c079fc61c30a4',
   med: '0x198c8c83f3e3dfab87ce363bcc2e5587dcda7dfcf56d24fc0bfa5c82454812ba'
-};
+} as const;
 
 // Necessary now that any site can redirect a user to Holonym and store user credentials. A user's
 // credential set could get cluttered with untrusted sites if we don't check against the whitelist.
@@ -341,6 +341,27 @@ export const primeToCountryCode = {
   1151: 'YE', // Yemen,
   1153: 'ZM', // Zambia,
   1163: 'ZW' // Zimbabwe
+};
+
+export const proofs = {
+  'us-residency': {
+    name: 'US Residency',
+    // contractName: "IsUSResident",
+    contractName: 'IsUSResidentV2'
+  },
+  uniqueness: {
+    name: 'Uniqueness (government ID)',
+    // contractName: "SybilResistance",
+    contractName: 'SybilResistanceV2'
+  },
+  'uniqueness-phone': {
+    name: 'Uniqueness (phone number)',
+    contractName: 'SybilResistancePhone'
+  },
+  'medical-specialty': {
+    name: 'Medical Specialty',
+    contractName: 'MedicalSpecialty'
+  }
 };
 
 export const steps = ['Verify', 'Finalize'];

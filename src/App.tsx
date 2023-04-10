@@ -60,7 +60,7 @@ const SignMessagesFallback = () => {
 function App() {
   const [read, setReady] = useState(false);
   useEffect(() => {
-    Promise.all([
+    void Promise.all([
       WebFont.load({
         google: {
           families: [

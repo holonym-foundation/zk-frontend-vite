@@ -5,7 +5,6 @@ import fwRed500 from '../img/Holo-Fireworks-Red-p-500.png';
 import fwRed800 from '../img/Holo-Fireworks-Red-p-800.png';
 import { useNavigate } from 'react-router-dom';
 
-// @ts-expect-error TS(2304): Cannot find name '$TSFixMe'.
 export const Success = (props: $TSFixMe) => {
   const navigate = useNavigate();
   return (
