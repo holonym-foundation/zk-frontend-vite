@@ -25,15 +25,18 @@ async function fetchNewCredentials(retrievalEndpoint: string) {
   return data as UserCredentialsSchema;
 }
 
-export function useRetrieveNewCredentials({ setError, retrievalEndpoint }) {
-  const newCredsRef = useRef();
+export function useRetrieveNewCredentials({ setError, retrievalEndpoint }: { setError: (error: string) => void; retrievalEndpoint: string }) {
+  const newCredsRef = useRef<Awaited<ReturnType<typeof fetchNewCredentials>>>();
   const queryClient = useQueryClient();
 
   const { data: newCreds } = useQuery(
     ["newCredentials", retrievalEndpoint],
     () => fetchNewCredentials(retrievalEndpoint),
     {
-      onError: (error) => setError(error.message),
+      onError: (error: unknown) => {
+        const errorMessage = String((error && typeof error === 'object' && 'message' in error) ? error.message: error);
+        setError(errorMessage);
+      },
       onSuccess: (newCredsTemp) => {
         newCredsRef.current = newCredsTemp;
         storeSessionId(retrievalEndpoint);

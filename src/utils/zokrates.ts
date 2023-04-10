@@ -135,3 +135,13 @@ export async function poseidonHashQuinary(input: [string, string, string, string
 // load("artifacts", "poseidonTwoInputs").then(() =>
 // 	console.log("Poseidon hash for two inputs loaded"),
 // );
+
+
+/** Computes a poseidon hash of the input array
+ * @param {Array<string>} serializedCreds All other values in the leaf's preimage, as an array of strings
+ */
+export async function createLeaf(serializedCreds: string[]) {
+  Promise.all([load('artifacts', "createLeaf"), load('provingKey', "createLeaf")]);
+  const { output } = await computeWitness('createLeaf', serializedCreds);
+  return output.replaceAll('"', "");
+}
