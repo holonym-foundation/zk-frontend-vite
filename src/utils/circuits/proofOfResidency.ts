@@ -1,24 +1,24 @@
-import { type Node } from '@zk-kit/incremental-merkle-tree'
-import { ethers } from 'ethers'
-import { type SerializedCreds } from '../../types'
-import { type GetMerkleProofParamsResult } from '../getMerkleProofParams'
-import { poseidonTwoInputs } from '../zokrates'
+import { type Node } from '@zk-kit/incremental-merkle-tree';
+import { ethers } from 'ethers';
+import { type SerializedCreds } from '../../types';
+import { type GetMerkleProofParamsResult } from '../getMerkleProofParams';
+import { poseidonTwoInputs } from '../zokrates';
 
-export async function getProofOfResidency ({
+export async function getProofOfResidency({
   sender,
   govIdCreds,
   mp,
   leaf
 }: {
-  sender: string
+  sender: string;
   govIdCreds: {
     creds: {
-      newSecret: string
-      serializedAsNewPreimage: SerializedCreds
-    }
-  }
-  mp: GetMerkleProofParamsResult
-  leaf: Node
+      newSecret: string;
+      serializedAsNewPreimage: SerializedCreds;
+    };
+  };
+  mp: GetMerkleProofParamsResult;
+  leaf: Node;
 }) {
   const [
     issuer,
@@ -27,13 +27,13 @@ export async function getProofOfResidency ({
     nameCitySubdivisionZipStreetHash,
     completedAt,
     scope
-  ] = govIdCreds.creds.serializedAsNewPreimage
+  ] = govIdCreds.creds.serializedAsNewPreimage;
   const salt =
-		'18450029681611047275023442534946896643130395402313725026917000686233641593164'
+    '18450029681611047275023442534946896643130395402313725026917000686233641593164';
   const footprint = await poseidonTwoInputs([
     salt,
     ethers.BigNumber.from(govIdCreds.creds.newSecret).toString()
-  ])
+  ]);
   return [
     mp.root,
     ethers.BigNumber.from(sender).toString(),
@@ -48,5 +48,5 @@ export async function getProofOfResidency ({
     leaf,
     mp.path,
     mp.indices
-  ]
+  ];
 }

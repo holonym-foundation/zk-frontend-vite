@@ -1,9 +1,10 @@
-import { useNavigate } from "react-router-dom";
-import { WithCheckMark } from "../atoms/checkmark";
+import { useNavigate } from 'react-router-dom';
+import { WithCheckMark } from '../atoms/checkmark';
 
 const StepSuccess = () => {
   const navigate = useNavigate();
-  const toTweet = "Just tried out the Holonym beta version and verified myself: https://app.holonym.id/issuance Each verification makes on-chain privacy stronger ⛓🎭";
+  const toTweet =
+    'Just tried out the Holonym beta version and verified myself: https://app.holonym.id/issuance Each verification makes on-chain privacy stronger ⛓🎭';
   return (
     <>
       <WithCheckMark size={3}>
@@ -14,30 +15,30 @@ const StepSuccess = () => {
         Privacy Pool (anonymity set) larger
       </h5>
       <br /> */}
-      <div style={{ display: "flex"}}>
+      <div style={{ display: 'flex' }}>
         <a
           href="/prove"
           className="glowy-green-button"
-          style={{ lineHeight: "1", fontSize: "16px" }}
+          style={{ lineHeight: '1', fontSize: '16px' }}
           target="_blank"
           rel="noreferrer"
           onClick={(event) => {
             event.preventDefault();
-            navigate("/prove");
+            navigate('/prove');
           }}
         >
           Get Soulbound tokens
         </a>
-        <div style={{ margin: "10px" }} />
+        <div style={{ margin: '10px' }} />
         <a
           href="/profile"
           className="x-button secondary outline"
-          style={{ lineHeight: "1", fontSize: "16px" }}
+          style={{ lineHeight: '1', fontSize: '16px' }}
           target="_blank"
           rel="noreferrer"
           onClick={(event) => {
             event.preventDefault();
-            navigate("/profile");
+            navigate('/profile');
           }}
         >
           View my Holo

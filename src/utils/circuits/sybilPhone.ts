@@ -1,31 +1,31 @@
-import { type Node } from '@zk-kit/incremental-merkle-tree'
-import { ethers } from 'ethers'
-import { type defaultActionId } from '../../constants'
-import { type SerializedCreds } from '../../types'
-import { type GetMerkleProofParamsResult } from '../getMerkleProofParams'
-import { poseidonTwoInputs } from '../zokrates'
+import { type Node } from '@zk-kit/incremental-merkle-tree';
+import { ethers } from 'ethers';
+import { type defaultActionId } from '../../constants';
+import { type SerializedCreds } from '../../types';
+import { type GetMerkleProofParamsResult } from '../getMerkleProofParams';
+import { poseidonTwoInputs } from '../zokrates';
 
-export async function getSybilPhone ({
+export async function getSybilPhone({
   sender,
   actionId,
   phoneNumCreds,
   mp,
   leaf
 }: {
-  sender: string
+  sender: string;
   phoneNumCreds: {
-    creds: { newSecret: string, serializedAsNewPreimage: SerializedCreds }
-  }
-  actionId: string | typeof defaultActionId
-  mp: GetMerkleProofParamsResult
-  leaf: Node
+    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
+  };
+  actionId: string | typeof defaultActionId;
+  mp: GetMerkleProofParamsResult;
+  leaf: Node;
 }) {
   const [issuer, nullifier, phoneNumber, iat, scope] =
-		phoneNumCreds.creds.serializedAsNewPreimage
+    phoneNumCreds.creds.serializedAsNewPreimage;
   const hashbrowns = await poseidonTwoInputs([
     actionId,
     ethers.BigNumber.from(phoneNumCreds.creds.newSecret).toString()
-  ])
+  ]);
   return [
     mp.root,
     ethers.BigNumber.from(sender).toString(),
@@ -39,5 +39,5 @@ export async function getSybilPhone ({
     leaf,
     mp.path,
     mp.indices
-  ]
+  ];
 }

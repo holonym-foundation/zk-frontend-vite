@@ -23,23 +23,56 @@ function Banner() {
         color: '#fff',
         fontSize: '1.5rem',
         fontFamily: 'Clover Semibold',
-        marginTop: '10px',
+        marginTop: '10px'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p style={{ margin: 0, fontSize: "1.5rem", fontFamily: "Clover Semibold" }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%'
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center'
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: '1.5rem',
+              fontFamily: 'Clover Semibold'
+            }}
+          >
             Welcome to the Holonym Beta!
           </p>
           <p>
-            <span style={{ color:'#2fd87a', padding: '10px', fontSize: '1.3rem' }}>{'\u2713'}</span>
-              Your privacy is preserved by zero knowledge proofs and threshold encryption.
-            <span style={{ color:'#2fd87a', padding: '10px', fontSize: '1.3rem' }}>{'\u2713'}</span>
-            <br/>
-            View{" "}
-            <a className="in-text-link" href="https://docs.holonym.id/introduction/private-credentials" target="_blank" rel="noreferrer">
+            <span
+              style={{ color: '#2fd87a', padding: '10px', fontSize: '1.3rem' }}
+            >
+              {'\u2713'}
+            </span>
+            Your privacy is preserved by zero knowledge proofs and threshold
+            encryption.
+            <span
+              style={{ color: '#2fd87a', padding: '10px', fontSize: '1.3rem' }}
+            >
+              {'\u2713'}
+            </span>
+            <br />
+            View{' '}
+            <a
+              className="in-text-link"
+              href="https://docs.holonym.id/introduction/private-credentials"
+              target="_blank"
+              rel="noreferrer"
+            >
               our docs
-            </a>{" "}
+            </a>{' '}
             to learn about how Holonym stores information.
           </p>
         </div>

@@ -1,22 +1,17 @@
-import { ethers } from 'ethers'
-import { defaultActionId } from '../constants'
-import {
-  computeWitness,
-  generateProof
-} from './zokrates'
+import { ethers } from 'ethers';
+import { defaultActionId } from '../constants';
+import { computeWitness, generateProof } from './zokrates';
 // @ts-expect-error
-import { groth16 } from 'snarkjs'
-import { type RawCredentials, type SerializedCreds } from '../types'
-import { type IdServerGetCredentialsRespnse } from '../id-server'
-import { createProof } from './createProof'
-import { getKnowledgeOfLeafPreimage } from './circuits/knowledgeOfLeafPreimage'
-import { loadMerkleProofParams } from './getMerkleProofParams'
-import { getGovIdFirstNameLastName } from './circuits/govIdFirstNameLastName'
+import { groth16 } from 'snarkjs';
+import { type RawCredentials, type SerializedCreds } from '../types';
+import { type IdServerGetCredentialsRespnse } from '../id-server';
+import { createProof } from './createProof';
+import { getKnowledgeOfLeafPreimage } from './circuits/knowledgeOfLeafPreimage';
+import { loadMerkleProofParams } from './getMerkleProofParams';
+import { getGovIdFirstNameLastName } from './circuits/govIdFirstNameLastName';
 
 // TODO: document what data parameter is
-export async function onAddLeafProof (
-  data: RawCredentials
-) {
+export async function onAddLeafProof(data: RawCredentials) {
   const params = {
     pubKeyX: data.pubkey.x,
     pubKeyY: data.pubkey.y,
@@ -30,25 +25,25 @@ export async function onAddLeafProof (
     iat: data.creds.iat,
     customFields: data.creds.customFields,
     scope: data.creds.scope
-  }
+  };
   return await groth16.fullProve(
     params,
     'https://preproc-zkp.s3.us-east-2.amazonaws.com/circom/onAddLeaf_js/onAddLeaf.wasm',
     'https://preproc-zkp.s3.us-east-2.amazonaws.com/circom/onAddLeaf_0001.zkey'
-  )
+  );
 }
 
 /**
  * @param {string} issuer
  * @param {string} govIdCreds
  */
-export async function proofOfResidency (
+export async function proofOfResidency(
   sender: string,
   govIdCreds: {
-    creds: { newSecret: string, serializedAsNewPreimage: SerializedCreds }
+    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
   }
 ) {
-  console.log('PROOF: us-residency: starting')
+  console.log('PROOF: us-residency: starting');
   const proof = await createProof(
     'proofOfResidency',
     {
@@ -56,9 +51,9 @@ export async function proofOfResidency (
       sender
     },
     govIdCreds.creds.serializedAsNewPreimage as unknown as []
-  )
-  console.log('PROOF: us-residency: generated proof', proof)
-  return proof
+  );
+  console.log('PROOF: us-residency: generated proof', proof);
+  return proof;
 }
 
 /**
@@ -66,10 +61,10 @@ export async function proofOfResidency (
  * @param {object} govIdCreds
  * @param {string} actionId
  */
-export async function antiSybil (
+export async function antiSybil(
   sender: string,
   govIdCreds: {
-    creds: { newSecret: string, serializedAsNewPreimage: SerializedCreds }
+    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
   },
   actionId = defaultActionId
 ) {
@@ -81,9 +76,9 @@ export async function antiSybil (
       actionId
     },
     govIdCreds.creds.serializedAsNewPreimage as unknown as []
-  )
-  console.log('uniqueness proof', proof)
-  return proof
+  );
+  console.log('uniqueness proof', proof);
+  return proof;
 }
 
 /**
@@ -91,10 +86,10 @@ export async function antiSybil (
  * @param {object} phoneNumCreds
  * @param {string} actionId
  */
-export async function sybilPhone (
+export async function sybilPhone(
   sender: string,
   phoneNumCreds: {
-    creds: { newSecret: string, serializedAsNewPreimage: SerializedCreds }
+    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
   },
   actionId = defaultActionId
 ) {
@@ -106,21 +101,21 @@ export async function sybilPhone (
       actionId
     },
     phoneNumCreds.creds.serializedAsNewPreimage as unknown as []
-  )
-  console.log('uniqueness-phone proof', proof)
-  return await proof
+  );
+  console.log('uniqueness-phone proof', proof);
+  return await proof;
 }
 
-export async function proofOfMedicalSpecialty (
+export async function proofOfMedicalSpecialty(
   sender: string | undefined,
   medicalCreds: {
     creds: {
-      newSecret: string
-      serializedAsNewPreimage: SerializedCreds
-    }
+      newSecret: string;
+      serializedAsNewPreimage: SerializedCreds;
+    };
   }
 ) {
-  console.log('PROOF: medical-specialty: starting')
+  console.log('PROOF: medical-specialty: starting');
   const proof = createProof(
     'medicalSpecialty',
     {
@@ -128,12 +123,12 @@ export async function proofOfMedicalSpecialty (
       sender
     },
     medicalCreds.creds.serializedAsNewPreimage as unknown as []
-  )
-  console.log('PROOF: medical-specialty: generated proof', proof)
-  return await proof
+  );
+  console.log('PROOF: medical-specialty: generated proof', proof);
+  return await proof;
 }
 
-function mergeNewSecret (serializedCreds: SerializedCreds, newSecret: string) {
+function mergeNewSecret(serializedCreds: SerializedCreds, newSecret: string) {
   return [
     serializedCreds[0], // issuer
     newSecret,
@@ -141,14 +136,14 @@ function mergeNewSecret (serializedCreds: SerializedCreds, newSecret: string) {
     serializedCreds[3], // nameDobCitySubdivisionZipStreetExpireHash
     serializedCreds[4], // iat
     serializedCreds[5] // scope
-  ].map((x) => ethers.BigNumber.from(x).toString()) as SerializedCreds
+  ].map((x) => ethers.BigNumber.from(x).toString()) as SerializedCreds;
 }
 
-export async function proveKnowledgeOfLeafPreimage (
+export async function proveKnowledgeOfLeafPreimage(
   serializedCreds: SerializedCreds,
   newSecret: string
 ) {
-  console.log('proveKnowledgeOfLeafPreimage called')
+  console.log('proveKnowledgeOfLeafPreimage called');
   const proof = generateProof(
     'knowledgeOfLeafPreimage',
     await computeWitness(
@@ -165,21 +160,21 @@ export async function proveKnowledgeOfLeafPreimage (
         })))
       })
     ).witness
-  )
-  console.log('proveKnowledgeOfLeafPreimage proof', proof)
-  return proof
+  );
+  console.log('proveKnowledgeOfLeafPreimage proof', proof);
+  return await proof;
 }
 
 /**
  * @param govIdCreds - object issued from id-server
  */
-export async function proveGovIdFirstNameLastName (
+export async function proveGovIdFirstNameLastName(
   govIdCreds: IdServerGetCredentialsRespnse & {
-    newLeaf: string
-    creds: { newSecret: string }
+    newLeaf: string;
+    creds: { newSecret: string };
   }
 ) {
-  console.log('proveGovIdFirstNameLastName called')
+  console.log('proveGovIdFirstNameLastName called');
   const proof = generateProof(
     'govIdFirstNameLastName',
     await computeWitness(
@@ -192,7 +187,7 @@ export async function proveGovIdFirstNameLastName (
         ))
       })
     ).witness
-  )
-  console.log('proveGovIdFirstNameLastName proof', proof)
-  return proof
+  );
+  console.log('proveGovIdFirstNameLastName proof', proof);
+  return await proof;
 }

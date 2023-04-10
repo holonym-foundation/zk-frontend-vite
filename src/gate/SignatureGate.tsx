@@ -1,18 +1,17 @@
-import React, { PropsWithChildren } from "react";
-import useSignatureGate from "./useSignatureGate";
+import React, { type PropsWithChildren } from 'react';
+import useSignatureGate from './useSignatureGate';
 
 export default function SignatureGate({
-	children,
-	fallback,
-	gate
+  children,
+  fallback,
+  gate
 }: PropsWithChildren<{
-	fallback: React.ReactNode;
-	gate: (data: unknown) => boolean;
-
+  fallback: React.ReactNode;
+  gate: (data: unknown) => boolean;
 }>) {
-	const isGateOpen = useSignatureGate(gate);
-	if (isGateOpen) {
-		return <>{children}</>;
-	}
-	return fallback;
+  const isGateOpen = useSignatureGate(gate);
+  if (isGateOpen) {
+    return <>{children}</>;
+  }
+  return fallback;
 }

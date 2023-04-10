@@ -1,14 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 export function useVerificationFlow() {
   const storeCredsQuery = useQuery(['storeCreds'], {
     queryFn: async () => {
-      return {}
-    },
-  })
+      return {};
+    }
+  });
   const confirmationRequired = useMemo(() => true, []);
-
 
   return {
     storeCredsQuery,
@@ -16,12 +15,8 @@ export function useVerificationFlow() {
     credsThatWillBeOverwritten: [],
     error: true,
     confirmationDenied: true,
-    onConfirmOverwrite() {
-
-    },
-    onDenyOverwrite() {
-
-    },
-    loadingMessage: 'hi',
-  }
+    onConfirmOverwrite() {},
+    onDenyOverwrite() {},
+    loadingMessage: 'hi'
+  };
 }

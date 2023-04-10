@@ -1,11 +1,16 @@
-export type GetApi<K extends string = string, V extends unknown = unknown> = (key:K) => Promise<V>;
+export type GetApi<K extends string = string, V extends unknown = unknown> = (
+  key: K
+) => Promise<V>;
 
-export class SharedAsyncMemoized<K extends string = string, V extends unknown = unknown> {
-  private apiFn: GetApi<K,V>;
-  private promiseCache: Map<K, Promise<V>>;
-  private valueCache: Map<K, V>;
+export class SharedAsyncMemoized<
+  K extends string = string,
+  V extends unknown = unknown
+> {
+  private readonly apiFn: GetApi<K, V>;
+  private readonly promiseCache: Map<K, Promise<V>>;
+  private readonly valueCache: Map<K, V>;
 
-  constructor(apiFn: GetApi<K,V>) {
+  constructor(apiFn: GetApi<K, V>) {
     this.apiFn = apiFn;
     this.promiseCache = new Map();
     this.valueCache = new Map();
@@ -22,8 +27,8 @@ export class SharedAsyncMemoized<K extends string = string, V extends unknown = 
     }
 
     const result = await this.promiseCache.get(key);
-    if(result === undefined || result === null) {
-      throw new Error(`Value for key ${String(key)}`)
+    if (result === undefined || result === null) {
+      throw new Error(`Value for key ${String(key)}`);
     }
     this.valueCache.set(key, result as V);
     return result as Value;

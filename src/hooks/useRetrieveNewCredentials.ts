@@ -1,15 +1,15 @@
-import { useEffect, useRef } from "react";
-import { useQuery, useQueryClient } from "react-query";
-import { UserCredentialsSchema } from "../id-server";
+import { useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from 'react-query';
+import { type UserCredentialsSchema } from '../id-server';
 
 function storeSessionId(endpoint: string) {
-  const idServerUrl = "your_id_server_url_here";
+  const idServerUrl = 'your_id_server_url_here';
   if (
-    endpoint.includes("veriff-sessionId") &&
+    endpoint.includes('veriff-sessionId') &&
     endpoint.includes(`${idServerUrl}/veriff/credentials`)
   ) {
-    const sessionId = endpoint.split("sessionId=")[1];
-    localStorage.setItem("veriff-sessionId", sessionId);
+    const sessionId = endpoint.split('sessionId=')[1];
+    localStorage.setItem('veriff-sessionId', sessionId);
   }
 }
 
@@ -20,21 +20,31 @@ async function fetchNewCredentials(retrievalEndpoint: string) {
   }
   const data = await resp.json();
   if (!data) {
-    throw new Error("Could not retrieve credentials. No credentials found.");
+    throw new Error('Could not retrieve credentials. No credentials found.');
   }
   return data as UserCredentialsSchema;
 }
 
-export function useRetrieveNewCredentials({ setError, retrievalEndpoint }: { setError: (error: string) => void; retrievalEndpoint: string }) {
+export function useRetrieveNewCredentials({
+  setError,
+  retrievalEndpoint
+}: {
+  setError: (error: string) => void;
+  retrievalEndpoint: string;
+}) {
   const newCredsRef = useRef<Awaited<ReturnType<typeof fetchNewCredentials>>>();
   const queryClient = useQueryClient();
 
   const { data: newCreds } = useQuery(
-    ["newCredentials", retrievalEndpoint],
-    () => fetchNewCredentials(retrievalEndpoint),
+    ['newCredentials', retrievalEndpoint],
+    async () => await fetchNewCredentials(retrievalEndpoint),
     {
       onError: (error: unknown) => {
-        const errorMessage = String((error && typeof error === 'object' && 'message' in error) ? error.message: error);
+        const errorMessage = String(
+          error && typeof error === 'object' && 'message' in error
+            ? error.message
+            : error
+        );
         setError(errorMessage);
       },
       onSuccess: (newCredsTemp) => {
@@ -42,16 +52,16 @@ export function useRetrieveNewCredentials({ setError, retrievalEndpoint }: { set
         storeSessionId(retrievalEndpoint);
       },
       // The query will not be executed if the retrievalEndpoint is falsy
-      enabled: !!retrievalEndpoint,
+      enabled: !!retrievalEndpoint
     }
   );
 
   useEffect(() => {
     // Invalidate the cache and refetch when the retrievalEndpoint changes
-    queryClient.invalidateQueries(["newCredentials", retrievalEndpoint]);
+    queryClient.invalidateQueries(['newCredentials', retrievalEndpoint]);
   }, [retrievalEndpoint, queryClient]);
 
   return {
-    newCreds,
+    newCreds
   };
 }

@@ -1,4 +1,4 @@
-import { SharedAsyncMemoized, GetApi } from './SharedAsyncMemoized';
+import { SharedAsyncMemoized, type GetApi } from './SharedAsyncMemoized';
 
 describe('SharedAsyncMemoized', () => {
   let mockApiFn: jest.MockedFunction<GetApi>;
@@ -36,7 +36,7 @@ describe('SharedAsyncMemoized', () => {
     const memoized = new SharedAsyncMemoized(mockApiFn);
 
     await expect(memoized.waitForKey('unknown')).rejects.toThrowError(
-      'Unknown key',
+      'Unknown key'
     );
     expect(mockApiFn).toHaveBeenCalledTimes(1);
   });
@@ -45,16 +45,16 @@ describe('SharedAsyncMemoized', () => {
     const mockApiFnUndefined = jest.fn(async () => undefined);
     const memoizedUndefined = new SharedAsyncMemoized(mockApiFnUndefined);
 
-    await expect(memoizedUndefined.waitForKey('undefined')).rejects.toThrowError(
-      'Value for key undefined',
-    );
+    await expect(
+      memoizedUndefined.waitForKey('undefined')
+    ).rejects.toThrowError('Value for key undefined');
     expect(mockApiFnUndefined).toHaveBeenCalledTimes(1);
 
     const mockApiFnNull = jest.fn(async () => null);
     const memoizedNull = new SharedAsyncMemoized(mockApiFnNull);
 
     await expect(memoizedNull.waitForKey('null')).rejects.toThrowError(
-      'Value for key null',
+      'Value for key null'
     );
     expect(mockApiFnNull).toHaveBeenCalledTimes(1);
   });

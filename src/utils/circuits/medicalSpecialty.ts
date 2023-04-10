@@ -1,30 +1,30 @@
-import { type Node } from '@zk-kit/incremental-merkle-tree'
-import { ethers } from 'ethers'
-import { type SerializedCreds } from '../../types'
-import { type GetMerkleProofParamsResult } from '../getMerkleProofParams'
-import { poseidonTwoInputs } from '../zokrates'
+import { type Node } from '@zk-kit/incremental-merkle-tree';
+import { ethers } from 'ethers';
+import { type SerializedCreds } from '../../types';
+import { type GetMerkleProofParamsResult } from '../getMerkleProofParams';
+import { poseidonTwoInputs } from '../zokrates';
 
 const salt =
-	'320192098064396900878317978103229380372186908085604549333845693700248653086'
+  '320192098064396900878317978103229380372186908085604549333845693700248653086';
 
-export async function getMedicalSpecialty ({
+export async function getMedicalSpecialty({
   sender,
   medicalCreds,
   mp,
   leaf
 }: {
-  sender: string | undefined
+  sender: string | undefined;
   medicalCreds: {
     creds: {
-      newSecret: string
-      serializedAsNewPreimage: SerializedCreds
-    }
-  }
-  mp: GetMerkleProofParamsResult
-  leaf: Node
+      newSecret: string;
+      serializedAsNewPreimage: SerializedCreds;
+    };
+  };
+  mp: GetMerkleProofParamsResult;
+  leaf: Node;
 }) {
   const [issuer, newSecret, specialty, npiNumLicenseMedCredsHash, iat, scope] =
-		medicalCreds.creds.serializedAsNewPreimage
+    medicalCreds.creds.serializedAsNewPreimage;
   return [
     mp.root,
     ethers.BigNumber.from(sender).toString(),
@@ -42,5 +42,5 @@ export async function getMedicalSpecialty ({
     ethers.BigNumber.from(newSecret).toString(),
     mp.path,
     mp.indices
-  ]
+  ];
 }

@@ -1,29 +1,29 @@
-import { type Node } from '@zk-kit/incremental-merkle-tree'
-import { ethers } from 'ethers'
-import { type defaultActionId } from '../../constants'
-import { type SerializedCreds } from '../../types'
-import { type GetMerkleProofParamsResult } from '../getMerkleProofParams'
-import { poseidonTwoInputs } from '../zokrates'
+import { type Node } from '@zk-kit/incremental-merkle-tree';
+import { ethers } from 'ethers';
+import { type defaultActionId } from '../../constants';
+import { type SerializedCreds } from '../../types';
+import { type GetMerkleProofParamsResult } from '../getMerkleProofParams';
+import { poseidonTwoInputs } from '../zokrates';
 
-export async function getAntiSybil ({
+export async function getAntiSybil({
   sender,
   actionId,
   govIdCreds,
   mp,
   leaf
 }: {
-  sender: string
+  sender: string;
   govIdCreds: {
-    creds: { newSecret: string, serializedAsNewPreimage: SerializedCreds }
-  }
-  actionId: string | typeof defaultActionId
-  mp: GetMerkleProofParamsResult
-  leaf: Node
+    creds: { newSecret: string; serializedAsNewPreimage: SerializedCreds };
+  };
+  actionId: string | typeof defaultActionId;
+  mp: GetMerkleProofParamsResult;
+  leaf: Node;
 }) {
   const footprint = await poseidonTwoInputs([
     actionId,
     ethers.BigNumber.from(govIdCreds.creds.newSecret).toString()
-  ])
+  ]);
   const [
     issuer,
     secret,
@@ -31,7 +31,7 @@ export async function getAntiSybil ({
     nameCitySubdivisionZipStreetHash,
     completedAt,
     scope
-  ] = govIdCreds.creds.serializedAsNewPreimage
+  ] = govIdCreds.creds.serializedAsNewPreimage;
 
   return [
     mp.root,
@@ -47,5 +47,5 @@ export async function getAntiSybil ({
     leaf,
     mp.path,
     mp.indices
-  ]
+  ];
 }

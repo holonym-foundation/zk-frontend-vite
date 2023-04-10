@@ -9,12 +9,12 @@ import {
   useState,
   useEffect,
   useRef,
-  PropsWithChildren
-} from "react";
-import { useLocation } from "react-router-dom";
-import { useAccount } from "wagmi";
-import Relayer from "../utils/relayer";
-import { sha1String } from "../utils/sha";
+  type PropsWithChildren
+} from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAccount } from 'wagmi';
+import Relayer from '../utils/relayer';
+import { sha1String } from '../utils/sha';
 import {
   onAddLeafProof,
   proofOfResidency,
@@ -22,30 +22,30 @@ import {
   sybilPhone,
   proofOfMedicalSpecialty,
   proveGovIdFirstNameLastName,
-  proveKnowledgeOfLeafPreimage,
-} from "../utils/proofs";
-import { serverAddress, defaultActionId } from "../constants";
-import { useProofMetadata } from "./ProofMetadata";
-import { useCreds } from "./Creds";
-import { useQuery } from "@tanstack/react-query";
+  proveKnowledgeOfLeafPreimage
+} from '../utils/proofs';
+import { serverAddress, defaultActionId } from '../constants';
+import { useProofMetadata } from './ProofMetadata';
+import { useCreds } from './Creds';
+import { useQuery } from '@tanstack/react-query';
 
-type UniquenessProofData = {
+interface UniquenessProofData {
   // ... properties of your uniqueness proof data
-};
-type UniquenessPhoneProofData = {
+}
+interface UniquenessPhoneProofData {
   // ... properties of your uniqueness phone proof data
-};
-type USResidencyProofData = {
+}
+interface USResidencyProofData {
   // ... properties of your uniqueness phone proof data
-};
+}
 
-type MedicalSpecialtyProofData = {}
+interface MedicalSpecialtyProofData {}
 
 const Proofs = createContext(null);
 
 // Use worker swc
 export const proofsWorker = new Worker(
-  new URL("./web-workers/proofs.worker.js", import.meta.url),
+  new URL('./web-workers/proofs.worker.js', import.meta.url)
 );
 
 // Use worker in Webpack 5
@@ -74,7 +74,7 @@ function ProofsProvider({ children }: PropsWithChildren) {
     storeCreds,
     govIdCreds,
     phoneNumCreds,
-    medicalCreds,
+    medicalCreds
   } = useCreds();
   const prevSortedCredsRef = useRef(sortedCreds);
   const location = useLocation();
@@ -85,7 +85,7 @@ function ProofsProvider({ children }: PropsWithChildren) {
    * running in main thread could result in the page freezing while proof is generating.
    */
   const uniquenessProofQuery = useQuery<UniquenessProofData | undefined, Error>(
-    ["uniquenessProof"],
+    ['uniquenessProof'],
     async () => {
       if (govIdCreds === undefined || !account?.address) return undefined;
       const runInMainThread = false;
@@ -93,17 +93,17 @@ function ProofsProvider({ children }: PropsWithChildren) {
 
       if (!runInMainThread && proofsWorker) {
         proofsWorker.postMessage({
-          message: "uniqueness",
+          message: 'uniqueness',
           govIdCreds,
           userAddress: account.address,
           actionId: defaultActionId,
-          forceReload,
+          forceReload
         });
       } else {
         return await antiSybil(account.address, govIdCreds, defaultActionId);
       }
     },
-    { enabled: !!govIdCreds && !!account?.address },
+    { enabled: !(govIdCreds == null) && !!account?.address }
   );
   /**
    * Load anti-sybil proof (based on phone number) into context.
@@ -114,27 +114,27 @@ function ProofsProvider({ children }: PropsWithChildren) {
     UniquenessPhoneProofData | undefined,
     Error
   >(
-    ["uniquenessPhoneProof"],
+    ['uniquenessPhoneProof'],
     async () => {
-      if (!phoneNumCreds || !account?.address) return undefined;
+      if (phoneNumCreds == null || !account?.address) return undefined;
 
       const runInMainThread = false;
       const forceReload = false;
 
       if (!runInMainThread && proofsWorker) {
         proofsWorker.postMessage({
-          message: "uniqueness-phone",
+          message: 'uniqueness-phone',
           phoneNumCreds,
           userAddress: account.address,
           actionId: defaultActionId,
-          forceReload,
+          forceReload
         });
       } else {
         try {
           return await sybilPhone(
             account.address,
             phoneNumCreds,
-            defaultActionId,
+            defaultActionId
           );
         } catch (err) {
           console.error(err);
@@ -142,8 +142,8 @@ function ProofsProvider({ children }: PropsWithChildren) {
       }
     },
     {
-      enabled: !!sortedCreds?.[serverAddress["phone-v2"]] && !!account?.address,
-    },
+      enabled: !!sortedCreds?.[serverAddress['phone-v2']] && !!account?.address
+    }
   );
   // TODO: Low priority: Maybe: Add onAddLeafProof to this context
 
@@ -156,8 +156,8 @@ function ProofsProvider({ children }: PropsWithChildren) {
   async function loadProofs(suggestForceReload = false) {
     if (loadingProofMetadata || loadingCreds || !sortedCreds) return;
     if (
-      location.pathname.includes("issuance") &&
-      location.pathname.includes("store")
+      location.pathname.includes('issuance') &&
+      location.pathname.includes('store')
     ) {
       // Do not load proofs if the user is at the end of the issuance flow. We include this check
       // mainly to prevent a race condition between the calls to addLeaf (the one in this context
@@ -172,39 +172,40 @@ function ProofsProvider({ children }: PropsWithChildren) {
       sortedCredsDigest === (await sha1String(JSON.stringify(sortedCreds)))
     ) {
       console.log(
-        "Denying a reload of proofs because sortedCredsDigest is the same",
-        sortedCredsDigest,
+        'Denying a reload of proofs because sortedCredsDigest is the same',
+        sortedCredsDigest
       );
       return;
     }
     // @ts-expect-error TS(2345): Argument of type 'string' is not assignable to par... Remove this comment to see the full error message
     setSortedCredsDigest(await sha1String(JSON.stringify(sortedCreds)));
-    console.log("Loading proofs. suggestForceReload:", suggestForceReload);
+    console.log('Loading proofs. suggestForceReload:', suggestForceReload);
     // Figure out which proofs the user doesn't already have. Then load them
     // if the user has the credentials to do so.
     const missingProofs = {
-      uniqueness: !uniquenessProofQuery.data,
-      "unique-phone": !uniquenessPhoneProofQuery.data,
-      "us-residency": !usResidencyProof,
-      "medical-specialty": !medicalSpecialtyProof,
-      "gov-id-firstname-lastname": !govIdFirstNameLastNameProofQuery.data, // Not an SBT. No good way to determine whether user needs it, so always generate
-      kolp: !kolpProofQuery.data, // Not an SBT. Always needed
+      uniqueness: uniquenessProofQuery.data == null,
+      'unique-phone': uniquenessPhoneProofQuery.data == null,
+      'us-residency': !usResidencyProof,
+      'medical-specialty': !medicalSpecialtyProof,
+      'gov-id-firstname-lastname':
+        govIdFirstNameLastNameProofQuery.data == null, // Not an SBT. No good way to determine whether user needs it, so always generate
+      kolp: kolpProofQuery.data == null // Not an SBT. Always needed
     };
     if (proofMetadata) {
       for (const proofMetadataItem of proofMetadata) {
-        if (proofMetadataItem?.proofType === "us-residency") {
-          missingProofs["us-residency"] = false;
-        } else if (proofMetadataItem?.proofType === "uniqueness") {
-          missingProofs["uniqueness"] = false;
-        } else if (proofMetadataItem?.proofType === "uniqueness-phone") {
+        if (proofMetadataItem?.proofType === 'us-residency') {
+          missingProofs['us-residency'] = false;
+        } else if (proofMetadataItem?.proofType === 'uniqueness') {
+          missingProofs.uniqueness = false;
+        } else if (proofMetadataItem?.proofType === 'uniqueness-phone') {
           // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-          missingProofs["uniqueness-phone"] = false;
-        } else if (proofMetadataItem?.proofType === "medical-specialty") {
-          missingProofs["medical-specialty"] = false;
+          missingProofs['uniqueness-phone'] = false;
+        } else if (proofMetadataItem?.proofType === 'medical-specialty') {
+          missingProofs['medical-specialty'] = false;
         }
       }
     }
-    console.log("creds", sortedCreds);
+    console.log('creds', sortedCreds);
     if (!sortedCreds) return;
 
     // if (suggestForceReload || (missingProofs.kolp && !loadingKOLPProof)) {
@@ -276,19 +277,19 @@ function ProofsProvider({ children }: PropsWithChildren) {
     USResidencyProofData | undefined,
     Error
   >(
-    ["usResidencyProof"],
+    ['usResidencyProof'],
     async () => {
-      if (!govIdCreds || !account?.address) return undefined;
+      if (govIdCreds == null || !account?.address) return undefined;
 
       const runInMainThread = false;
       const forceReload = false;
 
       if (!runInMainThread && proofsWorker) {
         proofsWorker.postMessage({
-          message: "us-residency",
+          message: 'us-residency',
           userAddress: account.address,
           govIdCreds,
-          forceReload,
+          forceReload
         });
       } else {
         try {
@@ -298,7 +299,7 @@ function ProofsProvider({ children }: PropsWithChildren) {
         }
       }
     },
-    { enabled: !!govIdCreds && !!account?.address },
+    { enabled: !(govIdCreds == null) && !!account?.address }
   );
 
   /**
@@ -310,19 +311,19 @@ function ProofsProvider({ children }: PropsWithChildren) {
     MedicalSpecialtyProofData | undefined,
     Error
   >(
-    ["medicalSpecialtyProof"],
+    ['medicalSpecialtyProof'],
     async () => {
-      if (!medicalCreds || !account?.address) return undefined;
+      if (medicalCreds == null || !account?.address) return undefined;
 
       const runInMainThread = false;
       const forceReload = false;
 
       if (!runInMainThread && proofsWorker) {
         proofsWorker.postMessage({
-          message: "medical-specialty",
+          message: 'medical-specialty',
           userAddress: account.address,
           medicalCreds,
-          forceReload,
+          forceReload
         });
       } else {
         try {
@@ -332,22 +333,22 @@ function ProofsProvider({ children }: PropsWithChildren) {
         }
       }
     },
-    { enabled: !!medicalCreds && !!account?.address },
+    { enabled: !(medicalCreds == null) && !!account?.address }
   );
 
   const govIdFirstNameLastNameProofQuery = useQuery(
-    ["govIdFirstNameLastNameProof"],
+    ['govIdFirstNameLastNameProof'],
     async () => {
-      if (!govIdCreds) return undefined;
+      if (govIdCreds == null) return undefined;
 
       const runInMainThread = false;
       const forceReload = false;
 
       if (!runInMainThread && proofsWorker) {
         proofsWorker.postMessage({
-          message: "gov-id-firstname-lastname",
+          message: 'gov-id-firstname-lastname',
           govIdCreds,
-          forceReload,
+          forceReload
         });
       } else {
         try {
@@ -358,13 +359,13 @@ function ProofsProvider({ children }: PropsWithChildren) {
         }
       }
     },
-    { enabled: !!govIdCreds },
+    { enabled: !(govIdCreds == null) }
   );
 
   const kolpProofQuery = useQuery(
-    ["kolpProof"],
+    ['kolpProof'],
     async () => {
-      if (!govIdCreds && !phoneNumCreds) return undefined;
+      if (govIdCreds == null && phoneNumCreds == null) return undefined;
 
       const runInMainThread = false;
       const forceReload = false;
@@ -374,46 +375,46 @@ function ProofsProvider({ children }: PropsWithChildren) {
       if (proofsWorker && !runInMainThread) {
         if (newSecret && serializedAsNewPreimage) {
           proofsWorker.postMessage({
-            message: "kolp",
+            message: 'kolp',
             newSecret,
             serializedAsNewPreimage,
-            forceReload,
+            forceReload
           });
         }
         // We just need one KOLP proof. The proof is only used by storage server to verify that
         // the request is in fact from a Holonym user.
-        else if (govIdCreds?.creds?.serializedAsNewPreimage) {
+        else if (govIdCreds?.creds?.serializedAsNewPreimage != null) {
           proofsWorker.postMessage({
-            message: "kolp",
+            message: 'kolp',
             newSecret: govIdCreds.creds.newSecret,
             serializedAsNewPreimage: govIdCreds.creds.serializedAsNewPreimage,
-            forceReload,
+            forceReload
           });
-        } else if (phoneNumCreds?.creds?.serializedAsNewPreimage) {
+        } else if (phoneNumCreds?.creds?.serializedAsNewPreimage != null) {
           proofsWorker.postMessage({
-            message: "kolp",
+            message: 'kolp',
             newSecret: phoneNumCreds.creds.newSecret,
             serializedAsNewPreimage:
               phoneNumCreds.creds.serializedAsNewPreimage,
-            forceReload,
+            forceReload
           });
         }
       }
       if (runInMainThread) {
-        if (govIdCreds?.creds?.serializedAsNewPreimage) {
+        if (govIdCreds?.creds?.serializedAsNewPreimage != null) {
           return await proveKnowledgeOfLeafPreimage(
             govIdCreds?.creds?.serializedAsNewPreimage,
-            govIdCreds?.creds?.newSecret,
+            govIdCreds?.creds?.newSecret
           );
-        } else if (phoneNumCreds?.creds?.serializedAsNewPreimage) {
+        } else if (phoneNumCreds?.creds?.serializedAsNewPreimage != null) {
           return await proveKnowledgeOfLeafPreimage(
             phoneNumCreds?.creds?.serializedAsNewPreimage,
-            phoneNumCreds?.creds?.newSecret,
+            phoneNumCreds?.creds?.newSecret
           );
         }
       }
     },
-    { enabled: !!govIdCreds || !!phoneNumCreds },
+    { enabled: !(govIdCreds == null) || !(phoneNumCreds == null) }
   );
 }
 

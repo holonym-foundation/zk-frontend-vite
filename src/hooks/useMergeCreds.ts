@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { isEqual } from 'lodash';
-import { RawCredentials } from '../types'; // replace this with the actual path to your credentials types
+import { type RawCredentials } from '../types'; // replace this with the actual path to your credentials types
 import { issuerWhitelist } from '../constants';
 
 interface Props {
@@ -16,10 +16,18 @@ interface State {
   mergedSortedCreds: Record<string, RawCredentials> | undefined;
 }
 
-export function useMergeCreds({ setError, sortedCreds, loadingCreds, newCreds }: Props): State {
-  const [confirmationStatus, setConfirmationStatus] = useState<State['confirmationStatus']>('init');
-  const [credsThatWillBeOverwritten, setCredsThatWillBeOverwritten] = useState<State['credsThatWillBeOverwritten']>();
-  const [mergedSortedCreds, setMergedSortedCreds] = useState<State['mergedSortedCreds']>();
+export function useMergeCreds({
+  setError,
+  sortedCreds,
+  loadingCreds,
+  newCreds
+}: Props): State {
+  const [confirmationStatus, setConfirmationStatus] =
+    useState<State['confirmationStatus']>('init');
+  const [credsThatWillBeOverwritten, setCredsThatWillBeOverwritten] =
+    useState<State['credsThatWillBeOverwritten']>();
+  const [mergedSortedCreds, setMergedSortedCreds] =
+    useState<State['mergedSortedCreds']>();
 
   const onConfirmOverwrite = () => {
     setConfirmationStatus('confirmed');
@@ -34,7 +42,7 @@ export function useMergeCreds({ setError, sortedCreds, loadingCreds, newCreds }:
       return;
     }
 
-    if (!(loadingCreds || sortedCreds) || loadingCreds) {
+    if (!(loadingCreds || sortedCreds != null) || loadingCreds) {
       return;
     }
 
@@ -46,14 +54,20 @@ export function useMergeCreds({ setError, sortedCreds, loadingCreds, newCreds }:
       return;
     }
 
-    const lowerCaseIssuerWhitelist = issuerWhitelist.map((issuer) => issuer.toLowerCase());
+    const lowerCaseIssuerWhitelist = issuerWhitelist.map((issuer) =>
+      issuer.toLowerCase()
+    );
 
-    if (!lowerCaseIssuerWhitelist.includes(newCreds.creds.issuerAddress.toLowerCase())) {
+    if (
+      !lowerCaseIssuerWhitelist.includes(
+        newCreds.creds.issuerAddress.toLowerCase()
+      )
+    ) {
       setError(`Issuer ${newCreds.creds.issuerAddress} is not whitelisted.`);
       return;
     }
 
-    if (sortedCreds?.[newCreds.creds.issuerAddress]) {
+    if (sortedCreds?.[newCreds.creds.issuerAddress] != null) {
       if (isEqual(sortedCreds[newCreds.creds.issuerAddress], newCreds)) {
         setConfirmationStatus('confirmed');
         return;
@@ -67,13 +81,16 @@ export function useMergeCreds({ setError, sortedCreds, loadingCreds, newCreds }:
   }, [sortedCreds, loadingCreds, newCreds, confirmationStatus, setError]);
 
   useEffect(() => {
-    if (!(sortedCreds && newCreds?.creds?.issuerAddress) || confirmationStatus !== 'confirmed') {
+    if (
+      !(sortedCreds != null && newCreds?.creds?.issuerAddress) ||
+      confirmationStatus !== 'confirmed'
+    ) {
       return;
     }
 
     const mergedSortedCredsTemp = {
       ...sortedCreds,
-      [newCreds.creds.issuerAddress]: newCreds,
+      [newCreds.creds.issuerAddress]: newCreds
     };
 
     if (isEqual(mergedSortedCreds, mergedSortedCredsTemp)) {
@@ -88,6 +105,6 @@ export function useMergeCreds({ setError, sortedCreds, loadingCreds, newCreds }:
     credsThatWillBeOverwritten,
     mergedSortedCreds,
     onConfirmOverwrite,
-    onDenyOverwrite,
+    onDenyOverwrite
   };
 }

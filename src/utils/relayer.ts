@@ -1,35 +1,35 @@
-import axios from 'axios'
-import { relayerUrl } from '../constants'
-import { type BigNumber } from 'ethers'
-import { type Proof } from '../types'
+import axios from 'axios';
+import { relayerUrl } from '../constants';
+import { type BigNumber } from 'ethers';
+import { type Proof } from '../types';
 
-console.log('relayer url is ', relayerUrl)
+console.log('relayer url is ', relayerUrl);
 
-type Chain = 'optimism'
-type SubNetwork = 'goerli'
-type Network = `${Chain}-${SubNetwork}`
+type Chain = 'optimism';
+type SubNetwork = 'goerli';
+type Network = `${Chain}-${SubNetwork}`;
 
 type RelayerResponse = Record<
-	`${Network}`,
-{
-  nonce: number
-  gasPrice: BigNumber
-  gasLimit: BigNumber
-  to: string
-  value: BigNumber
-  data: string
-  chainId: number
-  v: number
-  r: string
-  s: string
-  from: string
-  hash: string
-  type?: unknown
-  confirmations: number
-}
->
+  `${Network}`,
+  {
+    nonce: number;
+    gasPrice: BigNumber;
+    gasLimit: BigNumber;
+    to: string;
+    value: BigNumber;
+    data: string;
+    chainId: number;
+    v: number;
+    r: string;
+    s: string;
+    from: string;
+    hash: string;
+    type?: unknown;
+    confirmations: number;
+  }
+>;
 
-type RelayerNetwork = 'optimism-goerli' | 'optimism'
+type RelayerNetwork = 'optimism-goerli' | 'optimism';
 
 export const relayerClient = {
   writeProof: async (
@@ -39,18 +39,18 @@ export const relayerClient = {
   ) =>
     await axios
       .post<RelayerResponse>(
-				`${relayerUrl}/writeProof/${contractName}/${network}`,
-				{
-				  writeProofArgs: proof
-				}
-    )
+        `${relayerUrl}/writeProof/${contractName}/${network}`,
+        {
+          writeProofArgs: proof
+        }
+      )
       .then((response) => response.data),
 
   getTree: async (network: RelayerNetwork = 'optimism-goerli') =>
     await axios.get(`${relayerUrl}/v2/getTree/${network}`),
   addLeaf: async (proof: Proof) =>
     await axios.post<RelayerResponse>(`${relayerUrl}/v2/addLeaf`, proof)
-}
+};
 
 // const Relayer = {
 // 	// @ts-expect-error TS(2304): Cannot find name '$TSFixMe'.
@@ -102,4 +102,4 @@ export const relayerClient = {
 // 	},
 // };
 
-export default relayerClient
+export default relayerClient;

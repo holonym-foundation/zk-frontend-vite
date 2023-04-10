@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 
 // @ts-expect-error TS(2304): Cannot find name '$TSFixMe'.
-export default function useSessionStorage(key: $TSFixMe, initialValue: $TSFixMe) {
+export default function useSessionStorage(
+  key: $TSFixMe,
+  initialValue: $TSFixMe
+) {
   const [item, setInnerValue] = useState(() => {
     try {
       return window.sessionStorage.getItem(key)
-        // @ts-expect-error TS(2345): Argument of type 'string | null' is not assignable... Remove this comment to see the full error message
-        ? JSON.parse(window.sessionStorage.getItem(key))
+        ? // @ts-expect-error TS(2345): Argument of type 'string | null' is not assignable... Remove this comment to see the full error message
+          JSON.parse(window.sessionStorage.getItem(key))
         : initialValue;
     } catch (error) {
       return initialValue;
