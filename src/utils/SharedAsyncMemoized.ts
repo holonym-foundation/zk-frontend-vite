@@ -1,11 +1,8 @@
-export type GetApi<K extends string = string, V extends unknown = unknown> = (
+export type GetApi<K extends string = string, V = unknown> = (
   key: K
 ) => Promise<V>;
 
-export class SharedAsyncMemoized<
-  K extends string = string,
-  V extends unknown = unknown
-> {
+export class SharedAsyncMemoized<K extends string = string, V = unknown> {
   private readonly apiFn: GetApi<K, V>;
   private readonly promiseCache: Map<K, Promise<V>>;
   private readonly valueCache: Map<K, V>;
