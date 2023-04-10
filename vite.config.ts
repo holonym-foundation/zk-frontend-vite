@@ -5,10 +5,12 @@ import svgrPlugin from "vite-plugin-svgr";
 import { resolve } from "path";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
+import eslint from 'vite-plugin-eslint'
+
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), viteTsconfigPaths(), svgrPlugin()],
+  plugins: [react(), viteTsconfigPaths(), svgrPlugin(), eslint()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),

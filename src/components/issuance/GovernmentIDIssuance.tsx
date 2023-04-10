@@ -1,23 +1,35 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { createVeriffFrame, MESSAGES } from "@veriff/incontext-sdk";
 import { useQuery } from "@tanstack/react-query";
 import FinalStep from "./FinalStep";
 import StepSuccess from "./StepSuccess";
 import VerificationContainer from "./IssuanceContainer";
-import { useGovernmentIDIssuanceState } from "./useGovernmentIDIssuanceState";
 import { getRetrivalEndpointForVeriffSessionId, getVeriffSession } from "../../id-server";
+import { steps } from '../../constants';
 
-const StepIDV = () => {
+
+const GovernmentIDIssuance = () => {
 	const navigate = useNavigate();
+	const { store } = useParams();
+	const [success, setSuccess] = useState<boolean>();
+	const veriffSessionId = useMemo(
+		() => localStorage.getItem("veriff-sessionId"),
+		[],
+	);
+	const [retry, setRetry] = useState<boolean>(!!veriffSessionId);
+	const retrievalEndpoint = getRetrivalEndpointForVeriffSessionId(veriffSessionId);
+	const currentStep = useMemo(() => (!store ? "Verify" : "Finalize"), [store]);
+	const currentIdx = useMemo(() => steps.indexOf(currentStep), [currentStep]);
+
 	const veriffSessionQuery = useQuery({
 		queryKey: ["veriffSession"],
 		queryFn: getVeriffSession,
+		enabled: currentStep === "Verify"
 	});
 
 	useEffect(() => {
-		if (!veriffSessionQuery.data?.url) return;
-
+		if (currentStep === "Verify" && !veriffSessionQuery.data?.url) return;
 		const verification = veriffSessionQuery.data;
 		const handleVeriffEvent = (msg: MESSAGES) => {
 			if (msg === MESSAGES.FINISHED && verification.id) {
@@ -35,72 +47,6 @@ const StepIDV = () => {
 		});
 	}, [veriffSessionQuery]);
 
-	return (
-		<>
-			<h3 style={{ marginBottom: "25px", marginTop: "-25px" }}>
-				Verify your ID
-			</h3>
-		</>
-	);
-};
-
-const ConfirmRetry = ({
-	setRetry,
-	retrievalEndpoint,
-}: {
-	setRetry: (retry: boolean) => void;
-	retrievalEndpoint: string;
-}) => (
-	<div style={{ textAlign: "center" }}>
-		<h2>Skip verification?</h2>
-		<p>We noticed you have verified yourself already.</p>
-		<p>Would you like to skip to the Store step?</p>
-		<div style={{ display: "flex", flex: "flex-row", marginTop: "20px" }}>
-			<button
-				className="export-private-info-button"
-				style={{
-					lineHeight: "1",
-					fontSize: "16px",
-				}}
-				onClick={() => setRetry(false)}
-			>
-				No, I want to verify again
-			</button>
-			<div style={{ margin: "10px" }} />
-			<button
-				className="x-button"
-				style={{
-					lineHeight: "1",
-					fontSize: "16px",
-				}}
-				onClick={() => {
-					const encodedRetrievalEndpoint = encodeURIComponent(
-						window.btoa(retrievalEndpoint),
-					);
-					window.location.href = `/issuance/idgov/store?retrievalEndpoint=${encodedRetrievalEndpoint}`;
-				}}
-			>
-				Yes
-			</button>
-		</div>
-	</div>
-);
-
-const GovernmentIDIssuance = () => {
-	const navigate = useNavigate();
-	const {
-		success,
-		setSuccess,
-		onConfirmOverwrite,
-		onDenyOverwrite,
-		retry,
-		setRetry,
-		currentIdx,
-		steps,
-		currentStep,
-		retrievalEndpoint,
-	} = useGovernmentIDIssuanceState();
-
 	useEffect(() => {
 		if (success && window.localStorage.getItem("register-credentialType")) {
 			navigate(
@@ -112,24 +58,59 @@ const GovernmentIDIssuance = () => {
 			);
 		}
 	}, [success]);
+
+
+	const handleSkipStore = useCallback(() => {
+		if (veriffSessionId) {
+			window.location.href = `/issuance/idgov/store?retrievalEndpoint=${encodeURIComponent(
+				window.btoa(getRetrivalEndpointForVeriffSessionId(veriffSessionId)),
+			)}`;
+		}
+	}, []);
+
 	return (
 		<VerificationContainer steps={steps} currentIdx={currentIdx}>
 			{success ? (
 				<StepSuccess />
 			) : retry && currentStep !== "Finalize" ? (
-				<ConfirmRetry
-					setRetry={setRetry}
-					retrievalEndpoint={retrievalEndpoint}
-				/>
+				<div style={{ textAlign: "center" }}>
+					<h2>Skip verification?</h2>
+					<p>We noticed you have verified yourself already.</p>
+					<p>Would you like to skip to the Store step?</p>
+					<div style={{ display: "flex", flex: "flex-row", marginTop: "20px" }}>
+						<button
+							className="export-private-info-button"
+							style={{
+								lineHeight: "1",
+								fontSize: "16px",
+							}}
+							onClick={() => setRetry(false)}
+						>
+							No, I want to verify again
+						</button>
+						<div style={{ margin: "10px" }} />
+						<button
+							className="x-button"
+							style={{
+								lineHeight: "1",
+								fontSize: "16px",
+							}}
+							onClick={() => {
+								handleSkipStore()
+							}}
+						>
+							Yes
+						</button>
+					</div>
+				</div>
 			) : currentStep === "Verify" ? (
-				<StepIDV /> // currentStep === "Finalize" ? (
+				<>
+					<h3 style={{ marginBottom: "25px", marginTop: "-25px" }}>
+						Verify your ID
+					</h3>
+				</>
 			) : (
-				<FinalStep
-					onSuccess={setSuccess}
-					loadingMessage={""}
-					onConfirmOverwrite={onConfirmOverwrite}
-					onDenyOverwrite={onDenyOverwrite}
-				/>
+				<FinalStep onSuccess={() => setSuccess(true)} />
 			)}
 		</VerificationContainer>
 	);

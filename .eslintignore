@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.prettierrc.js
+.vite.config.ts
+.eslintrc.js
+eslint.config.js
+jest.config.js
+env.d.ts

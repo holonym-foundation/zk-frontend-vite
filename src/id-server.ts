@@ -5,7 +5,6 @@ import { idServerUrl } from "./constants";
 
 export const issuerAddressSchema = z.string().startsWith("0x").length(132);
 
-
 export interface IdServerError {
   error: string;
 }
@@ -93,18 +92,6 @@ export const getUserCredentialsSchema = async (
       `${idServerUrl}/credentials?sigDigest=${authSign}`,
     )
     .then(maybeThrowServerErrorOrReturnData)
-
-
-// export const getCredentials = (
-//   payload: DeepLinkPayload,
-// ): Promise<IdServerGetCredentialsRespnse> => {
-//   const url = getIdServerUrl(idServerUrl, payload);
-//   `${host}/register${easyUppercase(payload.provider)}/${
-//     payload.provider
-//   }Credentials?${key}=${payload[key]}`
-//   `${host}/veriff/credentials?sessionId=${payload[key]}`
-//   return axios.get<IdServerGetCredentialsRespnse>(url).then((res) => res.data);
-// };
 
 const UserProofMetadataSchema = z.object({
   sigDigest: z.string(),

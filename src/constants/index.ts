@@ -342,3 +342,6 @@ export const primeToCountryCode = {
 	1153: "ZM", // Zambia,
 	1163: "ZW", // Zimbabwe
 };
+
+
+export const steps = ["Verify", "Finalize"];

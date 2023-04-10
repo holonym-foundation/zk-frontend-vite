@@ -18,8 +18,7 @@ const connectWalletGateFn = (data: {
 	return !!data?.account?.address && !!data?.account?.connector;
 };
 
-// @ts-expect-error TS(7006): Parameter 'data' implicitly has an 'any' type.
-const signMessagesGateFn = (data) => {
+const signMessagesGateFn = (data: { holoAuthSig: string; holoAuthSigDigest: string; holoKeyGenSig: string; holoKeyGenSigDigest: string; }) => {
 	return (
 		!!data?.holoAuthSig &&
 		!!data?.holoAuthSigDigest &&

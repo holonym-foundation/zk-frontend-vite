@@ -7,11 +7,9 @@ import FinalStep from "./FinalStep";
 import StepSuccess from "./StepSuccess";
 import { medDAOIssuerOrigin, serverAddress } from "../../constants";
 import IssuanceContainer from "./IssuanceContainer";
-import { proofsWorker } from "../../context/Proofs";
-import { useCreds } from "../../context/Creds";
-import { useQuery } from "@tanstack/react-query";
-import { proveGovIdFirstNameLastName } from "../../utils/proofs";
-
+// TODO: Do we need phone # for this?
+import { steps } from '../../constants'
+	
 const VerificationRequestForm = () => {
 	const navigate = useNavigate();
 	const [error, setError] = useState<string>();
@@ -190,10 +188,6 @@ function useMedicalCredentialsIssuance() {
 	const { store } = useParams();
 	const [success, setSuccess] = useState();
 	const [currentIdx, setCurrentIdx] = useState(0);
-
-	// TODO: Do we need phone # for this?
-	const steps = ["Verify", "Finalize"];
-
 	const currentStep = useMemo(() => {
 		if (!store) return "Verify";
 		if (store) return "Finalize";
