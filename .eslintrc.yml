@@ -16,7 +16,7 @@ plugins:
   - jest
   - prettier
 rules: {
-  prettier/prettier: [error, { singleQuote: true, trailingComma: false }],
+  prettier/prettier: [error, { singleQuote: true, trailingComma: 'none' }],
   quotes: [error, single],
   '@typescript-eslint/dot-notation': 'error',
   '@typescript-eslint/explicit-function-return-type': off,
