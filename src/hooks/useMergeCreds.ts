@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
 import { isEqual } from 'lodash';
-import { Credentials } from '../types'; // replace this with the actual path to your credentials types
+import { RawCredentials } from '../types'; // replace this with the actual path to your credentials types
+import { issuerWhitelist } from '../constants';
 
 interface Props {
   setError: (error: string) => void;
-  sortedCreds: Record<string, Credentials> | undefined;
+  sortedCreds: Record<string, RawCredentials> | undefined;
   loadingCreds: boolean;
-  newCreds: Credentials | undefined;
+  newCreds: RawCredentials | undefined;
 }
 
 interface State {
   confirmationStatus: 'init' | 'confirmed' | 'denied' | 'confirmationRequired';
-  credsThatWillBeOverwritten: Credentials | undefined;
-  mergedSortedCreds: Record<string, Credentials> | undefined;
+  credsThatWillBeOverwritten: RawCredentials | undefined;
+  mergedSortedCreds: Record<string, RawCredentials> | undefined;
 }
 
 export function useMergeCreds({ setError, sortedCreds, loadingCreds, newCreds }: Props): State {
