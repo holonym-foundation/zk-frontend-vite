@@ -24,9 +24,6 @@ const Preproc = {
 
 // TODO: @amosel create a union type for circuitName
 export type CircuitName = keyof typeof zokABIs;
-type Abi = (typeof zokABIs)[CircuitName];
-type Program = Awaited<ReturnType<(typeof Preproc)['artifacts']>>;
-type VerifyingKey = Awaited<ReturnType<(typeof Preproc)['verifyingKey']>>;
 
 let zok: ZoKratesProvider | null = null;
 let initZok: null | Promise<ZoKratesProvider>;
@@ -41,11 +38,10 @@ async function waitForZokProvider(
   if (initZok != null) {
     return await initZok;
   } else {
-    initZok = new Promise((resolve, reject) => {
-      initialize().then(async (zokratesProvider) => {
-        zok = zokratesProvider;
-        initZok = null;
-      });
+    initZok = initialize().then(async (zokratesProvider) => {
+      zok = zokratesProvider;
+      initZok = null;
+      return zokratesProvider;
     });
     return await initZok;
   }
@@ -54,16 +50,6 @@ async function waitForZokProvider(
 export async function waitForArtifacts(circuitName: CircuitName) {
   await load('artifacts', circuitName);
 }
-const artifacts: Partial<
-  Record<
-    CircuitName,
-    {
-      program: Program;
-      abi: Abi;
-    }
-  >
-> = {};
-
 const cache = new SharedAsyncMemoized(
   async (key: `${CircuitName}.${keyof typeof Preproc}`) => {
     const [circuitName, preprocKey] = key.split('.');
@@ -94,13 +80,7 @@ export const generateProof = async (
   witness: string
 ) => {
   const program = await load('artifacts', circuitName);
-  if (program) {
-    throw new Error(`Artifacts for ${circuitName} not loaded`);
-  }
   const provingKey = await load('provingKey', circuitName);
-  if (!provingKey) {
-    throw new Error(`Proving key for ${circuitName} not loaded`);
-  }
   return (await waitForZokProvider()).generateProof(
     program,
     witness,
@@ -145,7 +125,7 @@ export async function poseidonHashQuinary(
  * @param {Array<string>} serializedCreds All other values in the leaf's preimage, as an array of strings
  */
 export async function createLeaf(serializedCreds: string[]) {
-  Promise.all([
+  await Promise.all([
     load('artifacts', 'createLeaf'),
     load('provingKey', 'createLeaf')
   ]);
