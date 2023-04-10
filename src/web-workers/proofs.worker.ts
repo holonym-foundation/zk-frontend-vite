@@ -5,6 +5,7 @@
  * page, which in turn decreases the time the user spends waiting for
  * a proof to load.
  */
+import { type IdServerGetCredentialsRespnse } from '../id-server';
 import {
   proofOfResidency,
   antiSybil,
@@ -12,6 +13,7 @@ import {
   proveGovIdFirstNameLastName,
   proveKnowledgeOfLeafPreimage
 } from '../utils/proofs';
+import { load } from '../utils/zokrates';
 
 const generatingProof = {
   uniqueness: false,
@@ -22,13 +24,9 @@ const generatingProof = {
 };
 
 async function loadProof(
-  proofFunction: () => Promise<{
-    (sender: $TSFixMe, govIdCreds: $TSFixMe, actionId?: string): Promise<any>;
-    (
-      sender: $TSFixMe,
-      phoneNumCreds: $TSFixMe,
-      actionId?: string
-    ): Promise<any>;
+  proofFunction: (...args: any[]) => Promise<{
+    (sender: string, govIdCreds: [], actionId?: string): Promise<any>;
+    (sender: string, phoneNumCreds: $TSFixMe, actionId?: string): Promise<any>;
     (sender: $TSFixMe, govIdCreds: $TSFixMe): Promise<any>;
     (sender: $TSFixMe, medicalCreds: $TSFixMe): Promise<any>;
     (govIdCreds: $TSFixMe): Promise<any>;
@@ -36,13 +34,11 @@ async function loadProof(
     (arg0: any): any;
   }>,
   args: any[],
-  proofType: string,
-  forceReload: any
+  proofType: keyof typeof generatingProof,
+  forceReload: boolean
 ) {
-  // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
   if (generatingProof[proofType] && !forceReload) return;
   try {
-    // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
     generatingProof[proofType] = true;
     console.log(
       `[Worker] Generating ${proofType} proof. Received params:`,
@@ -54,14 +50,16 @@ async function loadProof(
     console.log(`[Worker] Error generating ${proofType} proof`, err);
     postMessage({ error: err, proofType, proof: null });
   } finally {
-    // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
     generatingProof[proofType] = false;
   }
 }
 
 onmessage = async (event) => {
-  await waitFor('artifacts', 'poseidonQuinary', 10 * 1000);
-  await waitFor('artifacts', 'poseidonTwoInputs', 10 * 1000);
+  await Promise.all([
+    load('artifacts', 'poseidonQuinary'),
+    load('artifacts', 'poseidonTwoInputs')
+  ]);
+  // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
   if (event.data && event.data.message === 'uniqueness') {
     const args = [
       event.data.userAddress,

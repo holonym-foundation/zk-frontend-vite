@@ -5,14 +5,42 @@ import { z } from 'zod';
 import { toFormikValidationSchema } from 'zod-formik-adapter';
 import FinalStep from './FinalStep';
 import StepSuccess from './StepSuccess';
-import { medDAOIssuerOrigin, serverAddress } from '../../constants';
+import { steps, medDAOIssuerOrigin, serverAddress } from '../../constants';
 import IssuanceContainer from './IssuanceContainer';
-// TODO: Do we need phone # for this?
-import { steps } from '../../constants';
+import { useCreds } from '../../context/Creds';
+import { useQuery } from '@tanstack/react-query';
+import { proofsWorker } from '../../context/Proofs';
+import { proveGovIdFirstNameLastName } from '../../utils/proofs';
 
+const runInMainThread = false;
+const forceReload = false;
+
+// TODO: Do we need phone # for this?
 const VerificationRequestForm = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string>();
+  const { sortedCreds, loadingCreds, govIdCreds } = useCreds();
+  const govIdFirstNameLastNameProofQuery = useQuery(
+    ['govIdFirstNameLastNameProof'],
+    async () => {
+      if (govIdCreds == null) return undefined;
+      if (!runInMainThread && proofsWorker !== null) {
+        proofsWorker.postMessage({
+          message: 'gov-id-firstname-lastname',
+          govIdCreds,
+          forceReload
+        });
+      } else {
+        try {
+          // @ts-expect-error TS(2322): Type '{ uniquenessProof: null; loadUniquenessProof... Remove this comment to see the full error message
+          return await proveGovIdFirstNameLastName(govIdCreds);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    },
+    { enabled: !(govIdCreds == null) }
+  );
 
   useEffect(() => {
     if (loadingCreds) return;
@@ -28,20 +56,23 @@ const VerificationRequestForm = () => {
     { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
   ) {
     try {
-      const body = {
-        firstName: values.firstName,
-        lastName: values.lastName,
-        npiNumber: values.npiNumber,
-        proof: govIdFirstNameLastNameProof
-      };
       const resp = await fetch(`${medDAOIssuerOrigin}/verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          firstName: values.firstName,
+          lastName: values.lastName,
+          npiNumber: values.npiNumber,
+          proof: govIdFirstNameLastNameProofQuery.data
+        })
       });
-      const data = await resp.json();
+      const data = (await resp.json()) as {
+        id?: string;
+        error?: string;
+        message?: string;
+      };
       console.log('server response...');
       console.log(data);
       if (resp.status === 200 && data.id) {
@@ -68,7 +99,7 @@ const VerificationRequestForm = () => {
     }
   }
 
-  if (error) {
+  if (error != null) {
     return (
       <>
         <div>
@@ -77,7 +108,7 @@ const VerificationRequestForm = () => {
       </>
     );
   }
-  if (!govIdCreds) {
+  if (govIdCreds == null) {
     return (
       <>
         <div>
@@ -194,22 +225,20 @@ const VerificationRequestForm = () => {
 function useMedicalCredentialsIssuance() {
   const { store } = useParams();
   const [success, setSuccess] = useState();
-  const [currentIdx, setCurrentIdx] = useState(0);
   const currentStep = useMemo(() => {
-    if (!store) return 'Verify';
-    if (store) return 'Finalize';
+    if (store == null) return 'Verify';
+    if (store.length > 0) return 'Finalize';
   }, [store]);
 
-  useEffect(() => {
-    // @ts-expect-error TS(2345): Argument of type 'string | undefined' is not assig... Remove this comment to see the full error message
-    setCurrentIdx(steps.indexOf(currentStep));
+  const currentIdx = useMemo(() => {
+    if (currentStep == null) return 0;
+    return steps.indexOf(currentStep);
   }, [currentStep]);
 
   return {
     success,
     setSuccess,
     currentIdx,
-    setCurrentIdx,
     steps,
     currentStep
   };
@@ -217,11 +246,14 @@ function useMedicalCredentialsIssuance() {
 
 const MedicalCredentialsIssuance = () => {
   const navigate = useNavigate();
-  const { success, setSuccess, currentIdx, setCurrentIdx, steps, currentStep } =
+  const { success, setSuccess, currentIdx, steps, currentStep } =
     useMedicalCredentialsIssuance();
 
   useEffect(() => {
-    if (success && window.localStorage.getItem('register-credentialType')) {
+    if (
+      success &&
+      window.localStorage.getItem('register-credentialType') != null
+    ) {
       navigate(
         `/register?credentialType=${window.localStorage.getItem(
           'register-credentialType'

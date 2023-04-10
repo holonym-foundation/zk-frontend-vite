@@ -23,7 +23,8 @@ rules: {
   '@typescript-eslint/space-before-function-paren': off,
   '@typescript-eslint/indent': off,
   '@typescript-eslint/ban-ts-comment': off,
-  'react/react-in-jsx-scope': off
+  'react/react-in-jsx-scope': off,
+  '@typescript-eslint/strict-boolean-expressions': off
 }
 settings: {
   react: {

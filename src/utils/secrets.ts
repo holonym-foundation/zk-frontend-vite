@@ -3,11 +3,11 @@ import {
   type Proof,
   type ProofMetadata,
   type ProofType,
-  type RawCredentials,
   type SerializedCreds
 } from './../types';
 import { Buffer } from 'buffer';
 import { ethers } from 'ethers';
+import { merge } from 'lodash';
 import { type Transaction } from '../types';
 // @ts-expect-error
 import aesjs from 'aes-js';
@@ -60,6 +60,7 @@ export function encryptWithAES(data: unknown, key: string) {
   const formattedKey = aesjs.utils.hex.toBytes(
     key.startsWith('0x') ? key.slice(2) : key
   );
+  // eslint-disable-next-line new-cap
   const aesCtr = new aesjs.ModeOfOperation.ctr(formattedKey);
   const encryptedBytes = aesCtr.encrypt(objBytes);
   return aesjs.utils.hex.fromBytes(encryptedBytes);
@@ -80,6 +81,7 @@ export async function decryptWithAES(
   const formattedKey = aesjs.utils.hex.toBytes(
     key.startsWith('0x') ? key.slice(2) : key
   );
+  // eslint-disable-next-line new-cap
   const aesCtr = new aesjs.ModeOfOperation.ctr(formattedKey);
   const decryptedBytes = aesCtr.decrypt(encryptedBytes);
   const decryptedText = aesjs.utils.utf8.fromBytes(decryptedBytes);
@@ -110,15 +112,12 @@ export function getLatestKolpProof() {
 }
 
 export function setLatestKolpProof(kolpProof: Proof) {
-  if (kolpProof) {
-    try {
-      localStorage.setItem('latest-kolp-proof', JSON.stringify(kolpProof));
-      return true;
-    } catch (err) {
-      return false;
-    }
+  try {
+    localStorage.setItem('latest-kolp-proof', JSON.stringify(kolpProof));
+    return true;
+  } catch (err) {
+    return false;
   }
-  return false;
 }
 
 /**
@@ -146,9 +145,10 @@ export async function getLocalEncryptedUserCredentials() {
   const localEncryptedCredentialsAES = window.localStorage.getItem(
     'holoEncryptedCredentialsAES'
   );
-  const varsAreDefined = localEncryptedCredentialsAES;
-  const varsAreUndefinedStr = localEncryptedCredentialsAES === 'undefined';
-  if (varsAreDefined && !varsAreUndefinedStr) {
+  if (
+    localEncryptedCredentialsAES != null &&
+    localEncryptedCredentialsAES !== 'undefined'
+  ) {
     console.log('Found creds in localStorage');
     return {
       encryptedCredentialsAES: localEncryptedCredentialsAES
@@ -158,15 +158,11 @@ export async function getLocalEncryptedUserCredentials() {
 }
 
 const isStringNotUndefinedOrNull = (str: string) =>
-  str && str !== 'undefined' && str !== 'null';
+  str.length > 0 && str !== 'undefined' && str !== 'null';
 
 interface EncryptedCreds {
   encryptedCredentialsAES: string;
 }
-type StoredCreds = Record<
-  IssuerAddress,
-  { completedAt: 123; rawCreds: RawCredentials }
->;
 /**
  * Get credentials from localStorage and remote backup. Also re-stores credentials
  * before returning them.
@@ -182,8 +178,8 @@ export async function getCredentials(
 ) {
   // AES-encrypted creds are present
   const decryptCredsWithAES = async (encryptedCreds?: EncryptedCreds) =>
-    encryptedCreds?.encryptedCredentialsAES &&
-    isStringNotUndefinedOrNull(encryptedCreds?.encryptedCredentialsAES)
+    encryptedCreds?.encryptedCredentialsAES != null &&
+    isStringNotUndefinedOrNull(encryptedCreds.encryptedCredentialsAES)
       ? await decryptWithAES(
           encryptedCreds.encryptedCredentialsAES,
           holoKeyGenSigDigest
@@ -194,7 +190,7 @@ export async function getCredentials(
   const allCreds = await Promise.all([
     getLocalEncryptedUserCredentials().then(decryptCredsWithAES),
     getUserCredentialsSchema(holoAuthSigDigest).then(decryptCredsWithAES)
-  ]).then(([local, remote]) => [...(remote || []), ...(local || [])]);
+  ]).then(merge);
   // 4. Merge local and remote creds
   // If user provides signature for incorrect decryption key (which will happen if the user signs from a different account than the one used when encrypting),
   // the decryption procedure will still return some result, so we check that the result contains expected properties before merging.
@@ -213,27 +209,32 @@ export async function getCredentials(
       };
     } else if (credsFromIssuer.length > 1) {
       // User has multiple sets of credentials for the same issuer. Use the most recently issued set.
-      const sortedCredsFromIssuer = credsFromIssuer.sort((a, b) => {
-        if (!(a[issuer]?.creds?.iat || b[issuer]?.creds?.iat)) return 0;
-        if (!a[issuer]?.creds?.iat) return 1;
-        if (!b[issuer]?.creds?.iat) return -1;
+      const sortedCredsFromIssuer = credsFromIssuer.sort(
+        (
+          a: Record<string, { creds: { iat: any } }>,
+          b: Record<string, { creds: { iat: any } }>
+        ) => {
+          if (!(a[issuer]?.creds?.iat || b[issuer]?.creds?.iat)) return 0;
+          if (!a[issuer]?.creds?.iat) return 1;
+          if (!b[issuer]?.creds?.iat) return -1;
 
-        // try-catch in case an iat isn't parsable as an ethers BigNumber. This will only happen if an issuer
-        // doesn't follow the standard, which is unlikely, but if it does happen and we do not handle it, the
-        // user could be blocked from getting their credentials.
-        try {
-          const bSecondsSince1900 = parseInt(
-            ethers.BigNumber.from(b[issuer].creds.iat).toString()
-          );
-          const aSecondsSince1900 = parseInt(
-            ethers.BigNumber.from(a[issuer].creds.iat).toString()
-          );
-          return bSecondsSince1900 - aSecondsSince1900;
-        } catch (err) {
-          console.error(err);
-          return 0;
+          // try-catch in case an iat isn't parsable as an ethers BigNumber. This will only happen if an issuer
+          // doesn't follow the standard, which is unlikely, but if it does happen and we do not handle it, the
+          // user could be blocked from getting their credentials.
+          try {
+            const bSecondsSince1900 = parseInt(
+              ethers.BigNumber.from(b[issuer].creds.iat).toString()
+            );
+            const aSecondsSince1900 = parseInt(
+              ethers.BigNumber.from(a[issuer].creds.iat).toString()
+            );
+            return bSecondsSince1900 - aSecondsSince1900;
+          } catch (err) {
+            console.error(err);
+            return 0;
+          }
         }
-      });
+      );
       mergedCreds = {
         ...mergedCreds,
         [issuer]: sortedCredsFromIssuer[0][issuer]
@@ -242,7 +243,7 @@ export async function getCredentials(
   }
   // 5. Store merged creds in case there is a difference between local and remote
   if (restore) {
-    storeCredentials(mergedCreds, holoKeyGenSigDigest, holoAuthSigDigest);
+    await storeCredentials(mergedCreds, holoKeyGenSigDigest, holoAuthSigDigest);
   }
   if (Object.keys(mergedCreds).length > 0) {
     return mergedCreds;
@@ -295,8 +296,9 @@ export async function storeCredentials(
         }
       }
     }
-    if (kolpProof == null)
+    if (kolpProof == null) {
       throw new Error('No proof of knowledge of leaf preimage.');
+    }
     setLatestKolpProof(kolpProof);
     // This request will fail if the user does not have a valid proof. Hence the try-catch.
     console.log('sending encrypted creds to remote backup', creds);
@@ -412,7 +414,7 @@ export function getLocalProofMetadata() {
     'holoEncryptedProofMetadataAES'
   );
   if (
-    localEncryptedProofMetadataAES &&
+    localEncryptedProofMetadataAES != null &&
     localEncryptedProofMetadataAES !== 'null'
   ) {
     console.log('Found proof metadata in localStorage');
@@ -439,7 +441,7 @@ export async function getProofMetadata(
   // 3. If AES-encrypted proof metadata is present, decrypt it
   let proofMetadataArrAES = [];
   if (
-    localProofMetadata?.encryptedProofMetadataAES &&
+    localProofMetadata?.encryptedProofMetadataAES != null &&
     localProofMetadata?.encryptedProofMetadataAES !== 'undefined' &&
     localProofMetadata?.encryptedProofMetadataAES !== 'null'
   ) {
@@ -450,7 +452,7 @@ export async function getProofMetadata(
       ) ?? [];
   }
   if (
-    remoteProofMetadata?.encryptedProofMetadataAES &&
+    Boolean(remoteProofMetadata?.encryptedProofMetadataAES) &&
     remoteProofMetadata?.encryptedProofMetadataAES !== 'undefined' &&
     remoteProofMetadata?.encryptedProofMetadataAES !== 'null'
   ) {

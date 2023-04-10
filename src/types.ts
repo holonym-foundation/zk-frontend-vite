@@ -1,12 +1,10 @@
 import { type ethers } from 'ethers';
 import {
-  type idServerGetCredentialsRespnseSchema,
+  type IdServerGetCredentialsRespnse,
   type issuerAddressSchema
 } from './id-server';
 import { type z } from 'zod';
 
-// @ts-expect-error
-// rome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type $TSFixMe = any;
 
 export declare interface MerkleProof {
@@ -29,10 +27,6 @@ export interface ProofMetadata {
   txHash: string;
   actionId?: string;
 }
-
-export type IdServerGetCredentialsRespnse = z.infer<
-  typeof idServerGetCredentialsRespnseSchema
->;
 
 export interface CredentialsSecret {
   newSecret: string;
