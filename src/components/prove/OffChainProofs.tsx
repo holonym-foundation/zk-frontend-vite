@@ -23,8 +23,8 @@ const CustomOval = () => (
   />
 );
 
-const LoadingProofsButton = (props: { onClick: () => void }) => (
-  <button className="x-button" onClick={props.onClick}>
+const LoadingProofsButton = () => (
+  <button className="x-button">
     <div
       style={{
         display: 'flex',
@@ -38,7 +38,8 @@ const LoadingProofsButton = (props: { onClick: () => void }) => (
   </button>
 );
 
-const useHook = () => {
+// this hook is incomplete, it misses the proof context re-writre
+const useOffChainProofs = () => {
   const [searchParams] = useSearchParams();
   const params = useParams() as {
     proofType: keyof typeof proofs;
@@ -86,9 +87,9 @@ const useHook = () => {
     isInvalidSession,
     handleSubmit() {
       if (
-        sessionQuery.isError ||
-        !sessionQuery?.data ||
-        sessionQuery?.isError ||
+        sessionQuery.isError ??
+        !sessionQuery?.data ??
+        sessionQuery?.isError ??
         !proof
       )
         return;
@@ -102,7 +103,8 @@ const useHook = () => {
 
 const Proofs = () => {
   const { proof, hasNecessaryCreds, handleSubmit, proofName, errorMessage } =
-    useHook();
+    useOffChainProofs();
+
   return (
     <RoundedWindow>
       <div

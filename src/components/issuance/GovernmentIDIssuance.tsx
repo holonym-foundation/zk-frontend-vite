@@ -10,6 +10,7 @@ import {
   getVeriffSession
 } from '../../id-server';
 import { steps } from '../../constants';
+import { useLocalStorageToNavigate } from './useLocalStorageToNavigate';
 
 const GovernmentIDIssuance = () => {
   const navigate = useNavigate();
@@ -20,8 +21,6 @@ const GovernmentIDIssuance = () => {
     []
   );
   const [retry, setRetry] = useState<boolean>(!!veriffSessionId);
-  const retrievalEndpoint =
-    getRetrivalEndpointForVeriffSessionId(veriffSessionId);
   const currentStep = useMemo(() => (!store ? 'Verify' : 'Finalize'), [store]);
   const currentIdx = useMemo(() => steps.indexOf(currentStep), [currentStep]);
 
@@ -50,17 +49,7 @@ const GovernmentIDIssuance = () => {
     });
   }, [veriffSessionQuery]);
 
-  useEffect(() => {
-    if (success && window.localStorage.getItem('register-credentialType')) {
-      navigate(
-        `/register?credentialType=${window.localStorage.getItem(
-          'register-credentialType'
-        )}&proofType=${window.localStorage.getItem(
-          'register-proofType'
-        )}&callback=${window.localStorage.getItem('register-callback')}`
-      );
-    }
-  }, [success]);
+  useLocalStorageToNavigate(!!success);
 
   const handleSkipStore = useCallback(() => {
     if (veriffSessionId) {

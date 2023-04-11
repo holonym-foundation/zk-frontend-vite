@@ -1,7 +1,6 @@
 import { type ethers } from 'ethers';
 import { type IdServerGetCredentialsRespnse } from './id-server';
 import { type serverAddress } from './constants';
-import { Eq } from 'expect-type';
 
 export type $TSFixMe = any;
 

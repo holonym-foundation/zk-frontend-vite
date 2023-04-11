@@ -2,7 +2,6 @@ import {
   type Proof,
   type ProofMetadata,
   type ProofType,
-  type SerializedCreds,
   type SortedCreds
 } from './../types';
 import { Buffer } from 'buffer';
@@ -12,13 +11,17 @@ import { type Transaction } from '../types';
 // @ts-expect-error
 import aesjs from 'aes-js';
 import {
-  idServerUrl,
   issuerWhitelist,
   defaultActionId,
   zokratesFieldPrime
 } from '../constants';
 import { proveKnowledgeOfLeafPreimage } from './proofs';
-import { getUserCredentialsSchema } from '../id-server';
+import {
+  getUserCredentialsSchema,
+  postCredentials,
+  postProofMetadata,
+  getProofMetadataForSignatureDigest
+} from '../id-server';
 
 /**
  * @typedef {Object} ProofMetadataItem
@@ -72,10 +75,10 @@ export function encryptWithAES(data: unknown, key: string) {
  * @param {string} key must be 32-byte hexstring
  * @returns {Promise<object | array | string>} decrypted object, array, or string, depending on what was originally encrypted
  */
-export async function decryptWithAES(
+export async function decryptWithAES<T extends object | [unknown] | string>(
   data: string,
   key: string
-): Promise<object | [unknown] | string> {
+): Promise<T> {
   const formattedData = data.startsWith('0x') ? data.slice(2) : data;
   const encryptedBytes = aesjs.utils.hex.toBytes(formattedData);
   const formattedKey = aesjs.utils.hex.toBytes(
@@ -180,7 +183,7 @@ export async function getCredentials(
   const decryptCredsWithAES = async (encryptedCreds?: EncryptedCreds) =>
     encryptedCreds?.encryptedCredentialsAES != null &&
     isStringNotUndefinedOrNull(encryptedCreds.encryptedCredentialsAES)
-      ? await decryptWithAES(
+      ? await decryptWithAES<[]>(
           encryptedCreds.encryptedCredentialsAES,
           holoKeyGenSigDigest
         )
@@ -214,7 +217,7 @@ export async function getCredentials(
           a: Record<string, { creds: { iat: any } }>,
           b: Record<string, { creds: { iat: any } }>
         ) => {
-          if (!(a[issuer]?.creds?.iat || b[issuer]?.creds?.iat)) return 0;
+          if (!(a[issuer]?.creds?.iat ?? b[issuer]?.creds?.iat)) return 0;
           if (!a[issuer]?.creds?.iat) return 1;
           if (!b[issuer]?.creds?.iat) return -1;
 
@@ -251,10 +254,45 @@ export async function getCredentials(
   return null;
 }
 
+async function findKlop(sortedCreds: SortedCreds) {
+  let klop: Proof | null;
+  for (const issuer of Object.keys(sortedCreds)) {
+    const creds = sortedCreds[issuer as keyof SortedCreds]?.creds;
+    if (creds?.serializedAsNewPreimage) {
+      klop = await proveKnowledgeOfLeafPreimage(
+        [
+          ethers.BigNumber.from(
+            creds.serializedAsNewPreimage[0] || '0'
+          ).toString(),
+          ethers.BigNumber.from(
+            creds.serializedAsNewPreimage[1] || '0'
+          ).toString(),
+          ethers.BigNumber.from(
+            creds.serializedAsNewPreimage[2] || '0'
+          ).toString(),
+          ethers.BigNumber.from(
+            creds.serializedAsNewPreimage[3] || '0'
+          ).toString(),
+          ethers.BigNumber.from(
+            creds.serializedAsNewPreimage[4] || '0'
+          ).toString(),
+          ethers.BigNumber.from(
+            creds.serializedAsNewPreimage[5] || '0'
+          ).toString()
+        ],
+        creds.newSecret
+      );
+      break;
+    }
+  }
+  // @ts-expect-error
+  return klop;
+}
+
 /**
  * Store credentials in localStorage and remote backup. The request to the remote backup will fail if the
  * user does not have credentials that can be used to produce a proof of knowledge of leaf preimage.
- * @param {object} creds Plaintext sorted creds. IMPORTANT: creds should include all of the user's credentials.
+ * @param {object} sortedCreds Plaintext sorted creds. IMPORTANT: creds should include all of the user's credentials.
  * If an incorrect or incomplete creds object is provided, the user's valid credentials could be overwritten.
  * @param {string} holoKeyGenSigDigest Key for AES encryption/decryption.
  * @param {string} holoAuthSigDigest Sig digest used for lookup in remote backup.
@@ -263,52 +301,31 @@ export async function getCredentials(
  * @returns True if storage in remote backup is successful, false otherwise.
  */
 export async function storeCredentials(
-  creds: SortedCreds,
+  sortedCreds: SortedCreds,
   holoKeyGenSigDigest: string,
   holoAuthSigDigest: string,
   proof?: Proof
 ) {
   // 1. Encrypt creds with AES
-  const encryptedCredsAES = encryptWithAES(creds, holoKeyGenSigDigest);
+  const encryptedCredsAES = encryptWithAES(sortedCreds, holoKeyGenSigDigest);
   // 2. Store encrypted creds in localStorage
   setLocalUserCredentials(encryptedCredsAES);
   // 3. Store encrypted creds in remote backup
   try {
-    let kolpProof = proof ?? getLatestKolpProof();
-    if (kolpProof == null) {
-      for (const issuer of Object.keys(creds)) {
-        if (creds[issuer]?.creds?.serializedAsNewPreimage) {
-          ethers.BigNumber.from(
-            creds[issuer].creds.serializedAsNewPreimage[0] || '0'
-          ).toString();
-          kolpProof = await proveKnowledgeOfLeafPreimage(
-            creds[issuer].creds.serializedAsNewPreimage.map((item) =>
-              ethers.BigNumber.from(item || '0').toString()
-            ) as SerializedCreds,
-            creds[issuer].creds.newSecret
-          );
-          break;
-        }
-      }
-    }
+    const kolpProof =
+      proof ?? getLatestKolpProof() ?? (await findKlop(sortedCreds));
     if (kolpProof == null) {
       throw new Error('No proof of knowledge of leaf preimage.');
+    } else {
+      setLatestKolpProof(kolpProof);
     }
-    setLatestKolpProof(kolpProof);
     // This request will fail if the user does not have a valid proof. Hence the try-catch.
-    console.log('sending encrypted creds to remote backup', creds);
-    const resp = await fetch(`${idServerUrl}/credentials`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        sigDigest: holoAuthSigDigest,
-        proof: kolpProof,
-        encryptedCredentialsAES: encryptedCredsAES
-      })
+    console.log('sending encrypted creds to remote backup', sortedCreds);
+    await postCredentials({
+      sigDigest: holoAuthSigDigest,
+      proof: kolpProof,
+      encryptedCredentialsAES: encryptedCredsAES
     });
-    if (resp.status !== 200) throw new Error((await resp.json()).error);
     console.log('Successfully sent encrypted creds to remote backup.');
     return true;
   } catch (err) {
@@ -341,7 +358,7 @@ export function proofMetadataItemFromTx(
     blockNumber: tx.blockNumber,
     txHash: tx.transactionHash,
     ...(proofType === 'uniqueness'
-      ? { actionId: actionId || defaultActionId }
+      ? { actionId: actionId ?? defaultActionId }
       : {})
   };
 }
@@ -371,17 +388,12 @@ export async function addProofMetadataItem(
     );
     // 4. Store encrypted proof metadata in localStorage and in remote backup
     setLocalEncryptedProofMetadata(encryptedProofMetadataAES);
-    const resp2 = await fetch(`${idServerUrl}/proof-metadata`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        sigDigest: holoAuthSigDigest,
-        encryptedProofMetadataAES
-      })
+
+    await postProofMetadata({
+      sigDigest: holoAuthSigDigest,
+      encryptedProofMetadataAES
     });
-    if (resp2.status !== 200) throw new Error((await resp2.json()).error);
+
     return true;
   } catch (err) {
     console.error(err);
@@ -428,40 +440,40 @@ export async function getProofMetadata(
   // 1. Get local proof metadata
   const localProofMetadata = getLocalProofMetadata();
   // 2. Get remote proof metadata
-  const resp = await fetch(
-    `${idServerUrl}/proof-metadata?sigDigest=${holoAuthSigDigest}`
+  const remoteProofMetadata = await getProofMetadataForSignatureDigest(
+    holoAuthSigDigest
   );
-  if (resp.status !== 200) throw new Error((await resp.json()).error);
-  const remoteProofMetadata = await resp.json();
   // 3. If AES-encrypted proof metadata is present, decrypt it
-  let proofMetadataArrAES = [];
+  let proofMetadataArrayAES: ProofMetadata[] = [];
   if (
     localProofMetadata?.encryptedProofMetadataAES != null &&
     localProofMetadata?.encryptedProofMetadataAES !== 'undefined' &&
     localProofMetadata?.encryptedProofMetadataAES !== 'null'
   ) {
-    proofMetadataArrAES =
-      decryptWithAES(
+    proofMetadataArrayAES =
+      (await decryptWithAES<ProofMetadata[]>(
         localProofMetadata.encryptedProofMetadataAES,
         holoKeyGenSigDigest
-      ) ?? [];
+      )) ?? [];
   }
   if (
     Boolean(remoteProofMetadata?.encryptedProofMetadataAES) &&
     remoteProofMetadata?.encryptedProofMetadataAES !== 'undefined' &&
     remoteProofMetadata?.encryptedProofMetadataAES !== 'null'
   ) {
-    const remoteProofMetadataArrAES =
-      decryptWithAES(
+    proofMetadataArrayAES = proofMetadataArrayAES.concat(
+      (await decryptWithAES<ProofMetadata[]>(
         remoteProofMetadata.encryptedProofMetadataAES,
         holoKeyGenSigDigest
-      ) ?? [];
-    proofMetadataArrAES = proofMetadataArrAES.concat(remoteProofMetadataArrAES);
+      )) ?? []
+    );
   }
   // 5. Merge local and remote proof metadata
   const mergedProofMetadata: ProofMetadata[] = [];
-  for (const item of proofMetadataArrAES) {
-    if (mergedProofMetadata.find((i) => i?.txHash === item?.txHash) == null) {
+  for (const item of proofMetadataArrayAES) {
+    if (
+      mergedProofMetadata.findIndex((i) => i?.txHash === item?.txHash) === -1
+    ) {
       mergedProofMetadata.push(item);
     }
   }
@@ -476,17 +488,10 @@ export async function getProofMetadata(
     try {
       console.log('sending proof metadata to remote backup');
       // Ignore errors that occur here so that we can return the proof metadata
-      const resp2 = await fetch(`${idServerUrl}/proof-metadata`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sigDigest: holoAuthSigDigest,
-          encryptedProofMetadataAES
-        })
+      await postProofMetadata({
+        sigDigest: holoAuthSigDigest,
+        encryptedProofMetadataAES
       });
-      if (resp2.status !== 200) throw new Error((await resp2.json()).error);
     } catch (err) {
       console.log(err);
     }

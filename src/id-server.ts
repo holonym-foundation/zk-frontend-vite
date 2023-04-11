@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { AxiosResponse } from 'axios';
 import { z } from 'zod';
 import { serverAddress, idServerUrl } from './constants';
+import { type Proof } from 'zokrates-js';
 
 // @ts-expect-error - zod doesn't support union types
 const issuerAddressSchema = z.union(Object.values(serverAddress));
@@ -91,6 +92,31 @@ const maybeThrowServerErrorOrReturnData = <T>(response: AxiosResponse<T>) => {
   return response.data;
 };
 
+export const postCredentials = async (body: {
+  sigDigest: string;
+  proof: Proof;
+  encryptedCredentialsAES: string;
+}) =>
+  await axios
+    .post<{ error?: string }>(`${idServerUrl}/credentials`, body)
+    .then((resp) => {
+      if (resp.status !== 200) {
+        throw new Error(resp.data.error);
+      }
+      return resp.data;
+    });
+
+export const postProofMetadata = async (body: {
+  sigDigest: string;
+  encryptedProofMetadataAES: string;
+}) =>
+  await axios.post(`${idServerUrl}/proof-metadata`, body).then((resp) => {
+    if (resp.status !== 200) {
+      throw new Error(resp.data.error);
+    }
+    return resp.data;
+  });
+
 export const getUserCredentialsSchema = async (
   authSign: string /** lookup */
 ) =>
@@ -103,21 +129,17 @@ export const getUserCredentialsSchema = async (
 const UserProofMetadataSchema = z.object({
   sigDigest: z.string(),
   encryptedProofMetadata: z.string(),
-  encryptedSymmetricKey: z.string()
+  encryptedSymmetricKey: z.string(),
+  encryptedProofMetadataAES: z.string()
 });
 
 export type UserProofMetadata = z.infer<typeof UserProofMetadataSchema>;
 
-export const getProofMetadata = async (sigDigest: string) =>
+export const getProofMetadataForSignatureDigest = async (sigDigest: string) =>
   await axios
     .get<UserProofMetadata>(
       `${idServerUrl}/proof-metadata?sigDigest=${sigDigest}`
     )
-    .then((response) => response.data);
-
-export const postProofMetadata = async (reqBody: UserProofMetadata) =>
-  await axios
-    .post(`${idServerUrl}/proof-metadata`, reqBody)
     .then((response) => response.data);
 
 export const getVeriffSession = async () =>

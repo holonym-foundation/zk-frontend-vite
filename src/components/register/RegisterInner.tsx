@@ -14,7 +14,9 @@ export const RegisterInner = ({
 }: {
   params: SearchParamsProps;
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState<string>();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true);
   const hostname = useMemo(() => new URL(callback).hostname, [callback]);
 

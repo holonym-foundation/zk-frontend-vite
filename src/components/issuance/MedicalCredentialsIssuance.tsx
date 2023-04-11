@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { useCreds } from '../../context/Creds';
 import { useQuery } from '@tanstack/react-query';
 import { proofsWorker } from '../../context/Proofs';
 import { proveGovIdFirstNameLastName } from '../../utils/proofs';
+import { useLocalStorageToNavigate } from './useLocalStorageToNavigate';
 
 const runInMainThread = false;
 const forceReload = false;
@@ -197,14 +198,14 @@ const VerificationRequestForm = () => {
                 style={{ width: '100%', marginLeft: 'auto' }}
                 type="submit"
                 disabled={
-                  isSubmitting || !govIdFirstNameLastNameProofQuery.data
+                  isSubmitting ?? !govIdFirstNameLastNameProofQuery.data
                 }
               >
                 {isSubmitting
                   ? 'Submitting...'
                   : !govIdFirstNameLastNameProofQuery.data
-                  ? 'Loading proof...'
-                  : 'Submit'}
+                    ? 'Loading proof...'
+                    : 'Submit'}
               </button>
             </Form>
           )}
@@ -237,27 +238,9 @@ function useMedicalCredentialsIssuance() {
 }
 
 const MedicalCredentialsIssuance = () => {
-  const navigate = useNavigate();
   const { success, setSuccess, currentIdx, steps, currentStep } =
     useMedicalCredentialsIssuance();
-
-  useEffect(() => {
-    const registerCredentialType = window.localStorage.getItem(
-      'register-credentialType'
-    );
-    const registerProofType = window.localStorage.getItem('register-proofType');
-    const registerCallback = window.localStorage.getItem('register-callback');
-    if (
-      success &&
-      registerCredentialType != null &&
-      registerProofType != null &&
-      registerCallback != null
-    ) {
-      navigate(
-        `/register?credentialType=${registerCredentialType}&proofType=${registerProofType}&callback=${registerCallback}`
-      );
-    }
-  }, [success]);
+  useLocalStorageToNavigate(!!success);
 
   return (
     <IssuanceContainer steps={steps} currentIdx={currentIdx}>

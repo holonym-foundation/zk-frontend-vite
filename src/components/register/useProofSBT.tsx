@@ -11,7 +11,7 @@ export const useProofSBT = (proofType: z.infer<typeof proofTypeSchema>) => {
       (proofType &&
         proofMetadata?.filter(
           (metadata) => metadata.proofType === proofType
-        )) ||
+        )) ??
       null,
     [proofMetadata, proofType]
   );

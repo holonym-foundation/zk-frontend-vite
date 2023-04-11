@@ -8,7 +8,6 @@ import {
   type SerializedCreds,
   type CredsForProof
 } from '../types';
-import { type IdServerGetCredentialsRespnse } from '../id-server';
 import { createProof } from './createProof';
 import { getKnowledgeOfLeafPreimage } from './circuits/knowledgeOfLeafPreimage';
 import { loadMerkleProofParams } from './getMerkleProofParams';

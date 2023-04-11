@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import { type UserCredentialsSchema } from '../id-server';
+import { idServerUrl } from '../constants';
 
 function storeSessionId(endpoint: string) {
-  const idServerUrl = 'your_id_server_url_here';
   if (
     endpoint.includes('veriff-sessionId') &&
     endpoint.includes(`${idServerUrl}/veriff/credentials`)

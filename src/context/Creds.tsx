@@ -46,34 +46,19 @@ function CredsProvider({ children }: PropsWithChildren) {
   );
   const { holoAuthSigDigest } = useHoloAuthSig();
   const { holoKeyGenSigDigest } = useHoloKeyGenSig();
-  const govIdCreds = useMemo(
+  const creds = useMemo(
     () =>
-      (sortedCreds != null &&
-        serverAddress['idgov-v2'] in sortedCreds &&
-        sortedCreds[serverAddress['idgov-v2']]) ||
-      undefined,
-    [sortedCreds]
-  );
-  const phoneNumCreds = useMemo(
-    () =>
-      (sortedCreds != null &&
-        serverAddress['phone-v2'] in sortedCreds &&
-        sortedCreds[serverAddress['phone-v2']]) ||
-      undefined,
-    [sortedCreds]
-  );
-  const medicalCreds = useMemo(
-    () =>
-      (sortedCreds != null &&
-        serverAddress.med in sortedCreds &&
-        sortedCreds[serverAddress.med]) ||
-      undefined,
+      sortedCreds != null && {
+        govIdCreds: sortedCreds[serverAddress['idgov-v2']],
+        phoneNumCreds: sortedCreds[serverAddress['phone-v2']],
+        medicalCreds: sortedCreds[serverAddress.med]
+      },
     [sortedCreds]
   );
 
   const loadCredsQuery = useQuery(['load-creds'], {
     queryFn: async () => {
-      if (!holoKeyGenSigDigest || !holoAuthSigDigest) return;
+      if (!!holoKeyGenSigDigest && !!holoAuthSigDigest) return;
       return await getCredentials(
         holoKeyGenSigDigest,
         holoAuthSigDigest,
@@ -102,9 +87,7 @@ function CredsProvider({ children }: PropsWithChildren) {
   return (
     <CredsContext.Provider
       value={{
-        phoneNumCreds,
-        medicalCreds,
-        govIdCreds,
+        ...creds,
         sortedCreds,
         loadingCreds: loadCredsQuery.isLoading,
         reloadCreds: async () => {

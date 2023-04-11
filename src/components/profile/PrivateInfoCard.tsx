@@ -70,7 +70,7 @@ const ExportModal = ({
           <button
             className="x-button secondary outline"
             onClick={() => {
-              navigator.clipboard.writeText(authSigs);
+              void navigator.clipboard.writeText(authSigs);
               setShowCopied(true);
             }}
           >
@@ -79,7 +79,7 @@ const ExportModal = ({
           <hr />
           <h4>Scan QR code</h4>
           <div style={{ margin: '20px' }}>
-            <QRCode value={authSigs || ''} />
+            <QRCode value={authSigs ?? ''} />
           </div>
         </div>
       </Modal>
@@ -129,9 +129,7 @@ export default function PrivateInfoCard({
   const navigate = useNavigate();
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [authSigs, setAuthSigs] = useState<string>();
-  // @ts-expect-error TS(2339): Property 'holoAuthSig' does not exist on type 'nul... Remove this comment to see the full error message
   const { holoAuthSig } = useHoloAuthSig();
-  // @ts-expect-error TS(2339): Property 'holoKeyGenSig' does not exist on type 'n... Remove this comment to see the full error message
   const { holoKeyGenSig } = useHoloKeyGenSig();
 
   useEffect(() => {
@@ -216,7 +214,9 @@ export default function PrivateInfoCard({
                   className={exportButtonClasses}
                   style={{ padding: '20px' }}
                   onClick={() => {
-                    authSigs ? setExportModalVisible(true) : null;
+                    if (authSigs) {
+                      setExportModalVisible(true);
+                    }
                   }}
                 >
                   Export

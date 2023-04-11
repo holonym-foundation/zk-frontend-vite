@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useEffect, type MouseEventHandler } from 'react';
 import { Oval } from 'react-loader-spinner';
 import { Success } from '../success';
@@ -6,6 +6,7 @@ import { truncateAddress } from '../../utils/ui-helpers';
 import RoundedWindow from '../RoundedWindow';
 import { proofs } from '../../constants';
 import { useQuery } from '@tanstack/react-query';
+import { useLocalStorageToNavigate } from '../issuance/useLocalStorageToNavigate';
 
 const CustomOval = () => (
   <Oval
@@ -39,12 +40,12 @@ const LoadingProofsButton = (props: {
   </button>
 );
 
-const Proofs = () => {
+// this hook is incomplete, it misses the proof context re-writre
+const useOnChainProofs = () => {
   const params = useParams() as {
     proofType: keyof typeof proofs;
     callback: string;
   };
-  const navigate = useNavigate();
   const proofSubmissionSuccess = true;
   // const error: { message: string } | null = null;
   const errorMessage = '';
@@ -60,24 +61,41 @@ const Proofs = () => {
   });
   const setSubmissionConsent = (value: boolean) => {};
 
+  useLocalStorageToNavigate(proofSubmissionSuccess);
+
   useEffect(() => {
     if (proofSubmissionSuccess) {
       if (params.callback) {
         window.location.href = `https://${params.callback}`;
       }
-      const registerCredentialType = window.localStorage.getItem(
-        'register-credentialType'
-      );
-      const registerProofType =
-        window.localStorage.getItem('register-proofType');
-      const registerCallback = window.localStorage.getItem('register-callback');
-      if (registerCredentialType && registerProofType && registerCallback) {
-        navigate(
-          `/register?credentialType=${registerCredentialType}&proofType=${registerProofType}&callback=${registerCallback}`
-        );
-      }
     }
-  }, [proofSubmissionSuccess]);
+  }, [proofSubmissionSuccess, params.callback]);
+
+  return {
+    alreadyHasSBT,
+    accountReadyAddress,
+    setSubmissionConsent,
+    proofSubmissionSuccess: false,
+    proof,
+    errorMessage,
+    proofName: proofs[params.proofType].name,
+    hasNecessaryCreds,
+    submissionConsentQuery
+  };
+};
+
+const Proofs = () => {
+  const {
+    alreadyHasSBT,
+    accountReadyAddress,
+    proofSubmissionSuccess,
+    proof,
+    hasNecessaryCreds,
+    proofName,
+    errorMessage,
+    submissionConsentQuery,
+    setSubmissionConsent
+  } = useOnChainProofs();
 
   if (proofSubmissionSuccess) {
     return <Success title="Success" />;
@@ -93,7 +111,7 @@ const Proofs = () => {
           justifyContent: 'center'
         }}
       >
-        <h2>Prove {proofs[params.proofType].name}</h2>
+        <h2>Prove {proofName}</h2>
         <div className="spacer-med" />
         <br />
         {errorMessage ? (
@@ -113,8 +131,7 @@ const Proofs = () => {
               soul-bound token
             </a>{' '}
             (SBT) showing only this one attribute of you:{' '}
-            <code>{proofs[params.proofType].name}</code>. It may take 5-15
-            seconds to load.
+            <code>{proofName}</code>. It may take 5-15 seconds to load.
           </p>
         ) : (
           <p>
